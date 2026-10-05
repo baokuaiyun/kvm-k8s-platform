@@ -1,0 +1,42 @@
+# Crossplane 自定义 API 定义：PostgreSQL 自助申请
+# Mode B: API 隔离层
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xpostgresqls.database.baokuaiyun.com
+spec:
+  group: database.baokuaiyun.com
+  names:
+    kind: XPostgreSQL
+    plural: xpostgresqls
+  claimNames:
+    kind: PostgreSQLClaim
+    plural: postgresqlclaims
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              team:
+                type: string
+              version:
+                type: string
+                default: "16"
+              size:
+                type: string
+                default: "small"
+                enum: ["small", "medium", "large"]
+              storage:
+                type: integer
+                default: 10
+              replicas:
+                type: integer
+                default: 3
+            required:
+            - team

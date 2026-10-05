@@ -1,0 +1,21 @@
+# containerd 配置 — 镜像 mirror 指向 Harbor
+# 使用: 复制到节点 /etc/containerd/config.toml
+# 演练环境用自签名证书 insecure_skip_verify=true，生产改 false
+version = 3
+
+[plugins]
+  [plugins."io.containerd.grpc.v1.cri".registry]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors]
+      [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
+        endpoint = ["https://harbor.test.baokuaiyun.com/v2/proxy-docker"]
+      [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
+        endpoint = ["https://harbor.test.baokuaiyun.com/v2/proxy-quay"]
+      [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.k8s.io"]
+        endpoint = ["https://harbor.test.baokuaiyun.com/v2/proxy-k8s"]
+      [plugins."io.containerd.grpc.v1.cri".registry.mirrors."gcr.io"]
+        endpoint = ["https://harbor.test.baokuaiyun.com/v2/proxy-gcr"]
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."harbor.test.baokuaiyun.com".tls]
+      insecure_skip_verify = true
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."harbor.test.baokuaiyun.com".auth]
+      username = "admin"
+      password = "admin123"

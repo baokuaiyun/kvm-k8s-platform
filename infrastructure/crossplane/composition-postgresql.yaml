@@ -1,0 +1,88 @@
+# Crossplane Composition：PostgreSQL 编排模板
+# 租户提交 PostgreSQLClaim → 自动创建 ns + CNPG Cluster + NetworkPolicy
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xpostgresqls.database.baokuaiyun.com
+spec:
+  compositeTypeRef:
+    apiVersion: database.baokuaiyun.com/v1alpha1
+    kind: XPostgreSQL
+  resources:
+  - name: namespace
+    base:
+      apiVersion: kubernetes.crossplane.io/v1alpha1
+      kind: Object
+      spec:
+        forProvider:
+          manifest:
+            apiVersion: v1
+            kind: Namespace
+            metadata:
+              labels:
+                tenant: team
+    patches:
+    - type: FromCompositeFieldPath
+      fromFieldPath: spec.team
+      toFieldPath: spec.forProvider.manifest.metadata.name
+      transforms:
+      - type: string
+        string:
+          fmt: "team-%s"
+
+  - name: postgres-cluster
+    base:
+      apiVersion: kubernetes.crossplane.io/v1alpha1
+      kind: Object
+      spec:
+        forProvider:
+          manifest:
+            apiVersion: postgresql.cnpg.io/v1
+            kind: Cluster
+            metadata:
+              name: tenant-db
+            spec:
+              instances: 3
+              storage:
+                size: 10Gi
+                storageClass: longhorn
+    patches:
+    - type: FromCompositeFieldPath
+      fromFieldPath: spec.team
+      toFieldPath: spec.forProvider.manifest.metadata.namespace
+      transforms:
+      - type: string
+        string:
+          fmt: "team-%s"
+    - type: FromCompositeFieldPath
+      fromFieldPath: spec.storage
+      toFieldPath: spec.forProvider.manifest.spec.storage.size
+    - type: FromCompositeFieldPath
+      fromFieldPath: spec.replicas
+      toFieldPath: spec.forProvider.manifest.spec.instances
+
+  - name: network-policy
+    base:
+      apiVersion: kubernetes.crossplane.io/v1alpha1
+      kind: Object
+      spec:
+        forProvider:
+          manifest:
+            apiVersion: cilium.io/v2
+            kind: CiliumNetworkPolicy
+            metadata:
+              name: default-deny
+            spec:
+              endpointSelector: {}
+              ingress:
+              - fromEndpoints:
+                - matchLabels:
+                    tenant: team
+    patches:
+    - type: FromCompositeFieldPath
+      fromFieldPath: spec.team
+      toFieldPath: spec.forProvider.manifest.metadata.namespace
+      transforms:
+      - type: string
+        string:
+          fmt: "team-%s"

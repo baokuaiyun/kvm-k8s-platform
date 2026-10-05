@@ -1,0 +1,30 @@
+# ===== MkDocs =====
+site/
+.cache/
+
+# ===== 环境/密钥 =====
+.env
+*.secret
+*.key
+*.pem
+
+# ===== 运行数据 =====
+/data/
+backups/*
+!backups/.gitkeep
+
+# ===== 虚拟机镜像/磁盘 =====
+*.qcow2
+*.img
+*.iso
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+.venv/
+
+# ===== 编辑器/系统 =====
+.DS_Store
+.idea/
+.vscode/
+*.swp

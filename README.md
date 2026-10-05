@@ -1,0 +1,53 @@
+# KVM 生产集群项目
+
+基于 KVM + kubeadm 的可复现生产级 Kubernetes 集群，支持三模式多租户。
+
+## 快速开始
+
+```bash
+make help          # 查看所有目标
+make init          # 初始化 KVM 环境
+make phase1        # 阶段1: 基础集群创建
+make phase2        # 阶段2: 安全及运营监控
+make phase3        # 阶段3: 应用部署 + GitOps
+make phase4        # 阶段4: 持续升级维护
+make verify        # 全量验收
+```
+
+## 目录结构
+
+```
+├── Makefile              # 顶层入口
+├── variables.mk          # 全局变量（环境差异集中管理）
+├── kvm/                  # KVM 虚拟机管理
+├── kubernetes/           # kubeadm 集群安装
+├── infrastructure/       # 安全/租户/crossplane
+├── platform/             # Harbor/GitLab/Backstage
+├── registry/             # 镜像清单 + 推 Harbor
+├── observability/        # 监控/日志/告警
+├── scripts/              # 备份/恢复等运维脚本
+├── storage/              # Longhorn 等存储
+├── docs/                 # 完整文档
+├── backups/              # 备份目标
+└── patches/              # 补丁
+```
+
+## 文档
+
+- `docs/implementation-playbook.md` — 本机 KVM 四阶段实施手册
+- `docs/environment-differences.md` — 本机 vs 阿里云环境差异
+- `docs/alicloud-deployment.md` — 阿里云生产部署（多 ECS + CCM/SLB）
+- `docs/baokuaiyun-domain-migration.md` — 域名/证书/镜像迁移
+- `docs/tenant-isolation-architecture.md` — 三模式多租户
+- `docs/makefile-design.md` — Makefile 设计
+- `docs/image-management.md` — 镜像管理
+
+## 环境切换
+
+```bash
+# 本机演练
+make phase1 DOMAIN=test.baokuaiyun.com
+
+# 阿里云生产（改 variables.mk 或环境变量覆盖）
+make phase1 DOMAIN=baokuaiyun.com STORAGE_CLASS=alicloud-disk
+```

@@ -1,0 +1,5 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# 租户模板通过 create-tenant.sh 脚本动态生成
+# 此处保留为手动管理租户资源的位置
+resources: []

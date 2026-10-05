@@ -1,0 +1,62 @@
+site_name: KVM K8s 生产集群平台
+site_description: 基于 KVM + kubeadm 的可复现生产级 Kubernetes 集群，支持三模式多租户
+site_url: https://baokuaiyun.com
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.integrate
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: 切换到深色模式
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: 切换到浅色模式
+
+plugins:
+  - search:
+      lang:
+        - zh
+        - en
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - 首页: index.md
+  - 实施手册: implementation-playbook.md
+  - 环境差异: environment-differences.md
+  - 阿里云部署: alicloud-deployment.md
+  - 域名/证书迁移: baokuaiyun-domain-migration.md
+  - 多租户架构: tenant-isolation-architecture.md
+  - Makefile 设计: makefile-design.md
+  - 镜像管理: image-management.md
