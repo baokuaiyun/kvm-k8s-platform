@@ -1,0 +1,26 @@
+# cert-manager 配置：镜像走本域仓库（__IMAGE_REPOSITORY__ 由 Makefile 注入）
+installCRDs: true
+
+image:
+  repository: __IMAGE_REPOSITORY__/quay.jetstack.cert-manager-controller
+  tag: v1.15.3
+
+webhook:
+  image:
+    repository: __IMAGE_REPOSITORY__/quay.jetstack.cert-manager-webhook
+    tag: v1.15.3
+
+cainjector:
+  image:
+    repository: __IMAGE_REPOSITORY__/quay.jetstack.cert-manager-cainjector
+    tag: v1.15.3
+
+startupapicheck:
+  image:
+    repository: __IMAGE_REPOSITORY__/quay.jetstack.cert-manager-startupapicheck
+    tag: v1.15.3
+
+acmesolver:
+  image:
+    repository: __IMAGE_REPOSITORY__/quay.jetstack.cert-manager-acmesolver
+    tag: v1.15.3

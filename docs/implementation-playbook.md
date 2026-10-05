@@ -14,7 +14,7 @@
 
 # 阶段 1：基础集群创建
 
-**目标**：从零搭建 3CP+2Worker 的 HA Kubernetes 集群
+**目标**：先以 **1CP+1W 起步**跑通，再 `make scale-out` 扩到 **3CP+2W HA**。control-plane-endpoint 从一开始就用内网 DNS `k8s-api.test.baokuaiyun.com`（kube-vip VIP），避免后期重签证书。
 
 ## 1.1 客户端运维端准备（本地 Linux）
 
@@ -38,6 +38,14 @@ Host k8s-cp-1 k8s-cp-2 k8s-cp-3 k8s-worker-1 k8s-worker-2
     User root
     IdentityFile ~/.ssh/id_ed25519
     StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    LogLevel ERROR
+
+# 重建 VM 后主机指纹会变，按 IP 直连时也放宽
+Host 192.168.124.*
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    LogLevel ERROR
 EOF
 
 # kubectl
@@ -104,7 +112,39 @@ virsh net-start br-prod && virsh net-autostart br-prod
 # IP 转发
 echo 'net.ipv4.ip_forward = 1' > /etc/sysctl.d/99-kvm.conf
 sysctl -p /etc/sysctl.d/99-kvm.conf
+```
 
+### 1.2.1 内网 DNS（libvirt 内置 dnsmasq）
+
+libvirt 为 `br-prod` 自动拉起一个 dnsmasq，绑定网关 `192.168.124.1:53` 兼做 DHCP；VM 通过 DHCP 拿到的 DNS 就是它。`kvm/br-prod.xml` 已内置：
+
+```xml
+<domain name='test.baokuaiyun.com' localOnly='yes'/>
+<dnsmasq:options>
+  <dnsmasq:option value='host-record=k8s-api.test.baokuaiyun.com,192.168.124.30'/>
+</dnsmasq:options>
+```
+
+- `k8s-api.test.baokuaiyun.com` → VIP `192.168.124.30`（1CP+1W 起步阶段的 control-plane-endpoint）。
+- `localOnly='yes'`：`test.baokuaiyun.com` 只本地解析，不向公网转发。
+- 节点名经 `expand-hosts` 变为 `k8s-cp-1.test.baokuaiyun.com` 等。
+
+应用与验证：
+
+```bash
+make network-refresh   # 已激活网络套用 XML 变更（短暂断网）
+make dns-check         # dig @192.168.124.1 k8s-api.test.baokuaiyun.com
+```
+
+宿主机不在 `br-prod` 内，不查该 dnsmasq，需在宿主机 `/etc/hosts` 追加：
+
+```
+192.168.124.30 k8s-api.test.baokuaiyun.com
+```
+
+> DNS 只解决「名字→IP」；VIP 本身需由 keepalived/kube-vip 真实持有，否则仍连不通。生产环境改用阿里云 PrivateZone（见 `alicloud-deployment.md`）。
+
+```bash
 # 下载 Debian 13 cloud image
 cd /data/kvm/images
 wget https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2
@@ -154,11 +194,12 @@ set -euo pipefail
 NAME=$1; IP=$2; MAC=$3; VCPU=$4; RAM=$5; DISK=$6
 BASE=/data/kvm
 cloud-localds $BASE/seeds/$NAME-seed.iso \
-  -f $BASE/cloud-init/common-user-data -m $BASE/cloud-init/meta-data
+  $BASE/cloud-init/common-user-data $BASE/cloud-init/meta-data
 qemu-img create -f qcow2 -b $BASE/images/debian-13-generic-amd64.qcow2 \
   -F qcow2 $BASE/disks/$NAME.qcow2 $DISK
 virt-install \
   --name $NAME --vcpus $VCPU --memory $RAM \
+  --boot uefi \
   --disk path=$BASE/disks/$NAME.qcow2,format=qcow2,bus=virtio \
   --disk path=$BASE/seeds/$NAME-seed.iso,device=cdrom \
   --network bridge=br-prod,mac=$MAC,model=virtio \
@@ -166,55 +207,100 @@ virt-install \
 SCRIPT
 chmod +x /data/kvm/create-vm.sh
 
-# 批量创建
-/data/kvm/create-vm.sh k8s-cp-1 192.168.124.10 52:54:00:01:01:01 2 4096 30G
-/data/kvm/create-vm.sh k8s-cp-2 192.168.124.11 52:54:00:01:01:02 2 4096 30G
-/data/kvm/create-vm.sh k8s-cp-3 192.168.124.12 52:54:00:01:01:03 2 4096 30G
+# 起步仅创建 1CP(k8s-cp-1) + 1W(k8s-worker-1)
+/data/kvm/create-vm.sh k8s-cp-1     192.168.124.10 52:54:00:01:01:01 2 4096 30G
 /data/kvm/create-vm.sh k8s-worker-1 192.168.124.20 52:54:00:01:02:01 4 4096 50G
-/data/kvm/create-vm.sh k8s-worker-2 192.168.124.21 52:54:00:01:02:02 4 4096 50G
 
 virsh list --all
 ```
 
-## 1.4 kubeadm 集群安装
+> 仓库脚本版：`make vm-create`（按 `variables.mk` 的 `CP_INIT_COUNT/WK_INIT_COUNT` 建起步节点）；
+> 扩容用 `make vm-add-cp IDX=2` / `make vm-add-worker IDX=2`。
+> cloud-init 会按节点名注入**唯一 hostname**（`kvm/cloud-init/*-user-data` 的 `__HOSTNAME__`），避免多节点同名。
+>
+> **必须 `--boot uefi`（OVMF）**：Debian 13 云镜像用传统 BIOS 会 GRUB 反复重启（无内核日志）；
+> UEFI 下正常。对应销毁需 `virsh undefine <name> --nvram`。
+
+## 1.4 kubeadm 集群安装（1CP+1W 起步）
+
+> endpoint 全称使用内网 DNS `k8s-api.test.baokuaiyun.com`，指向 kube-vip VIP `192.168.124.30`。
+> **镜像必须在本步之前就绪**（见 1.4.0）。完整编排：`make phase1`。
+> 详细 ACR 同步见 → `acr-image-sync.md`。
+
+### 1.4.0 镜像准备（init 前必须完成）
+
+宿主机从 ACR/上游拉取，**重命名成本域镜像**，分发导入各节点：
 
 ```bash
-# 所有 5 台 VM 安装 kubeadm/kubelet/kubectl（客户端经 ProxyJump 执行）
-for n in k8s-cp-1 k8s-cp-2 k8s-cp-3 k8s-worker-1 k8s-worker-2; do
-  ssh $n "bash -s" <<'NODE'
-    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | \
-      gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-    echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' \
-      > /etc/apt/sources.list.d/kubernetes.list
-    apt-get update -qq
-    apt-get install -y -qq kubelet=1.31.0-1.1 kubeadm=1.31.0-1.1 kubectl=1.31.0-1.1
-    apt-mark hold kubelet kubeadm kubectl
-    systemctl enable --now kubelet
-NODE
-done
-
-# cp-1 初始化
-ssh k8s-cp-1 "kubeadm init \
-  --control-plane-endpoint=192.168.124.10:6443 \
-  --pod-network-cidr=10.244.0.0/16 \
-  --service-cidr=10.96.0.0/12 \
-  --upload-certs"
-
-# 拉取 kubeconfig 到客户端
-scp k8s-cp-1:/etc/kubernetes/admin.conf ~/.kube/config
-kubectl get nodes
-
-# cp-2/cp-3 加入控制面（用 init 输出中的 control-plane join 命令）
-# ssh k8s-cp-2 "kubeadm join ... --control-plane --certificate-key ..."
-# ssh k8s-cp-3 "kubeadm join ... --control-plane --certificate-key ..."
-
-# worker 加入
-# ssh k8s-worker-1 "kubeadm join 192.168.124.10:6443 --token ... --discovery-token-ca-cert-hash sha256:..."
-# ssh k8s-worker-2 "kubeadm join 192.168.124.10:6443 --token ... --discovery-token-ca-cert-hash sha256:..."
-
-# 等待全部 Ready
-kubectl get nodes -w
+cp acr.env.example acr.env && vim acr.env   # 填 ACR 用户名/密码
+make acr-prepare          # 下载 + 重命名 + 导出 tar（Tier0,Tier1）
+make image-load           # scp + ctr -n k8s.io images import
+make image-preflight      # 缺失即失败，阻止 init
 ```
+
+> 命名规则、认证模式、Tier 清单、Helm 覆盖、阶段 3 闭环 → 见 `acr-image-sync.md`。
+
+### 1.4.1 安装 kubelet/kubeadm/containerd（起步节点）
+
+```bash
+make k8s-common
+# = kubernetes/scripts/install-common.sh
+#   先 'cloud-init status --wait' 等 cloud-init 装完 gnupg/containerd
+#   再按 K8S_VERSION 主次号拉 apt 源，安装 kubelet/kubeadm/kubectl 并 hold
+```
+
+> 常见坑：VM 刚 SSH 通时 cloud-init 可能仍在跑，直接装会 `gpg: command not found`。脚本已内置等待。
+
+### 1.4.2 部署 kube-vip（init 之前，提供 VIP）
+
+```bash
+make kube-vip
+# = kubernetes/scripts/setup-kube-vip.sh
+#   生成 /etc/kubernetes/manifests/kube-vip.yaml 分发到 cp-1
+#   ARP/L2 模式，VIP=192.168.124.30，网卡取 variables.mk 的 VIP_IFACE（默认 enp1s0）
+```
+
+> 网卡名不确定时：登录节点 `ip -br link` 确认，改 `variables.mk` 的 `VIP_IFACE`。
+
+### 1.4.3 初始化控制面（cp-1）
+
+```bash
+make k8s-init
+# = kubernetes/scripts/init-control-plane.sh，等价于：
+# kubeadm init \
+#   --control-plane-endpoint=k8s-api.test.baokuaiyun.com:6443 \
+#   --image-repository=harbor.test.baokuaiyun.com/k8s-library \
+#   --pod-network-cidr=10.244.0.0/16 \
+#   --service-cidr=10.96.0.0/12 \
+#   --kubernetes-version=v1.31.0 \
+#   --cri-socket unix:///run/containerd/containerd.sock \
+#   --upload-certs
+```
+
+- kubeconfig 自动拉到宿主机 `~/.kube/config`
+- worker join 命令存到 `.join/worker-join.sh`（24h 有效）
+
+### 1.4.4 加入起步 Worker（worker-1）
+
+```bash
+make k8s-join
+kubectl get nodes -w        # cp-1 + worker-1 均 Ready
+```
+
+### 1.4.5 扩容到 3CP+2W（HA）
+
+```bash
+make scale-out
+# = vm-add-cp IDX=2/3 + vm-add-worker IDX=2
+#   + join-control-plane cp-2/cp-3（每次现取 certificate-key，规避 2h 过期）
+#   + join-worker worker-2
+kubectl get nodes           # 5 节点，control-plane 3 台
+```
+
+单独扩一台：`make vm-add-cp IDX=2 && make join-cp IDX=2`。
+
+> 注意：`certificate-key` 默认 2h 过期，`join-control-plane.sh` 每次重新
+> `kubeadm init phase upload-certs --upload-certs` 现取，无需缓存。
 
 ## 1.5 安装 Cilium CNI
 
@@ -223,7 +309,7 @@ helm repo add cilium https://helm.cilium.io && helm repo update
 helm upgrade --install cilium cilium/cilium \
   --namespace kube-system \
   --set kubeProxyReplacement=true \
-  --set k8sServiceHost=192.168.124.10 \
+  --set k8sServiceHost=192.168.124.30 \
   --set k8sServicePort=6443 \
   --set ipam.mode=kubernetes
 
@@ -236,7 +322,7 @@ kubectl wait -n kube-system --for=condition=Ready pod -l k8s-app=cilium --timeou
 helm repo add longhorn https://charts.longhorn.io && helm repo update
 helm upgrade --install longhorn longhorn/longhorn \
   --namespace longhorn-system --create-namespace \
-  --set defaultSettings.defaultReplicaCount=3
+  --set defaultSettings.defaultReplicaCount=1   # 起步 2 节点；扩容到 3 节点后改 $(LONGHORN_REPLICAS)
 
 kubectl wait -n longhorn-system --for=condition=Available deployment longhorn-ui --timeout=300s
 kubectl get sc   # 期望 longhorn 出现
@@ -293,7 +379,7 @@ kubectl get certificate -n cert-manager -w   # 等待 Ready=True
 ## 阶段 1 验收
 
 ```bash
-kubectl get nodes                          # 5 节点 Ready
+kubectl get nodes                          # 起步 2 节点 Ready（扩容后 5）
 kubectl get pods -A                        # 全 Running
 kubectl get sc                             # longhorn
 kubectl get certificate -n cert-manager    # Ready=True

@@ -1,4 +1,4 @@
-<network>
+<network xmlns:dnsmasq='http://libvirt.org/schemas/network/dnsmasq/1.0'>
   <name>br-prod</name>
   <forward mode="nat">
     <nat>
@@ -16,4 +16,21 @@
       <host name="k8s-worker-2" ip="192.168.124.21" mac="52:54:00:01:02:02"/>
     </dhcp>
   </ip>
+
+  <!-- 内网 DNS 域：节点短名/ FQDN 本地解析，不向公网转发 -->
+  <domain name='test.baokuaiyun.com' localOnly='yes'/>
+
+  <!--
+    自定义 DNS 记录（libvirt 内置 dnsmasq 渲染）
+    - k8s-api  : control-plane-endpoint 域名 → keepalived/kube-vip VIP
+    - 可选预留  : harbor/gitlab/grafana 指向集群入口 VIP
+  -->
+  <dnsmasq:options>
+    <dnsmasq:option value='host-record=k8s-api.test.baokuaiyun.com,192.168.124.30'/>
+    <dnsmasq:option value='host-record=casdoor.test.baokuaiyun.com,192.168.124.30'/>
+    <!-- <dnsmasq:option value='host-record=harbor.test.baokuaiyun.com,192.168.124.30'/> -->
+    <!-- <dnsmasq:option value='host-record=gitlab.test.baokuaiyun.com,192.168.124.30'/> -->
+    <!-- <dnsmasq:option value='host-record=grafana.test.baokuaiyun.com,192.168.124.30'/> -->
+    <dnsmasq:option value='host-record=argocd.test.baokuaiyun.com,192.168.124.30'/>
+  </dnsmasq:options>
 </network>

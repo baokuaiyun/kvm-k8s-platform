@@ -40,11 +40,15 @@ NODE_TYPE="worker"
 
 SEED_ISO="${SEED_DIR}/${NAME}-seed.iso"
 TMP_UD="/tmp/${NAME}-user-data"
-sed "s|__SSH_PUBKEY__|${SSH_PUBKEY}|g" "${BASE_DIR}/cloud-init/${NODE_TYPE}-user-data" > "$TMP_UD"
+TMP_MD="/tmp/${NAME}-meta-data"
+sed -e "s|__SSH_PUBKEY__|${SSH_PUBKEY}|g" \
+    -e "s|__HOSTNAME__|${NAME}|g" \
+    "${BASE_DIR}/cloud-init/${NODE_TYPE}-user-data" > "$TMP_UD"
+printf 'instance-id: %s\nlocal-hostname: %s\n' "$NAME" "$NAME" > "$TMP_MD"
 
 echo "[+] 生成 seed ISO: ${NAME}"
-cloud-localds "$SEED_ISO" -f "$TMP_UD" -m "${BASE_DIR}/cloud-init/meta-data"
-rm -f "$TMP_UD"
+cloud-localds "$SEED_ISO" "$TMP_UD" "$TMP_MD"
+rm -f "$TMP_UD" "$TMP_MD"
 
 # 创建磁盘（backing file 节省空间）
 DISK_IMG="${DISK_DIR}/${NAME}.qcow2"
@@ -57,6 +61,7 @@ virt-install \
   --name "$NAME" \
   --vcpus "$VCPU" \
   --memory "$RAM" \
+  --boot uefi \
   --disk path="$DISK_IMG",format=qcow2,bus=virtio \
   --disk path="$SEED_ISO",device=cdrom \
   --network bridge=br-prod,mac="$MAC",model=virtio \

@@ -1,0 +1,44 @@
+# Longhorn 配置：镜像走本域仓库（__IMAGE_REPOSITORY__ 由 Makefile 注入）
+# 注意：不同 chart 版本 image 结构可能变化，升级后用 `make helm-images` 复核
+defaultSettings:
+  defaultReplicaCount: 1   # 起步 2 节点；扩到 3 节点后按节点数调整
+
+image:
+  longhorn:
+    engine:
+      repository: __IMAGE_REPOSITORY__/longhornio.longhorn-engine
+      tag: v1.7.0
+    manager:
+      repository: __IMAGE_REPOSITORY__/longhornio.longhorn-manager
+      tag: v1.7.0
+    ui:
+      repository: __IMAGE_REPOSITORY__/longhornio.longhorn-ui
+      tag: v1.7.0
+    instanceManager:
+      repository: __IMAGE_REPOSITORY__/longhornio.longhorn-instance-manager
+      tag: v1.7.0
+    shareManager:
+      repository: __IMAGE_REPOSITORY__/longhornio.longhorn-share-manager
+      tag: v1.7.0
+    backingImageManager:
+      repository: __IMAGE_REPOSITORY__/longhornio.backing-image-manager
+      tag: v1.7.0
+  csi:
+    attacher:
+      repository: __IMAGE_REPOSITORY__/longhornio.csi-attacher
+      tag: v4.4.3
+    provisioner:
+      repository: __IMAGE_REPOSITORY__/longhornio.csi-provisioner
+      tag: v3.6.3
+    resizer:
+      repository: __IMAGE_REPOSITORY__/longhornio.csi-resizer
+      tag: v1.9.3
+    snapshotter:
+      repository: __IMAGE_REPOSITORY__/longhornio.csi-snapshotter
+      tag: v6.3.3
+    nodeDriverRegistrar:
+      repository: __IMAGE_REPOSITORY__/longhornio.csi-node-driver-registrar
+      tag: v2.10.1
+    livenessProbe:
+      repository: __IMAGE_REPOSITORY__/longhornio.livenessprobe
+      tag: v2.13.1

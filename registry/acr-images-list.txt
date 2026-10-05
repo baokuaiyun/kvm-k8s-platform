@@ -1,0 +1,81 @@
+# =============================================================================
+# 镜像清单（源 -> 本域目标名）
+# 格式: <源镜像>  <本域仓库后缀>  <Tier>  [<ACR 源仓库后缀>]
+#   - 目标 = $(IMAGE_REPOSITORY)/<本域仓库后缀>:<tag>
+#   - tag 自动取源镜像的 tag
+#   - Tier: Tier0=不齐集群起不来 / Tier1=阶段1验收 / Tier2=后续阶段
+#   - 第4列可选: ACR 中该镜像的仓库名（缺省 = ${ACR_NAMESPACE}/<本域仓库后缀>）
+# 说明: 核心(kubeadm)镜像必须用 basename（coredns 压平），其余用全路径 / 换 .
+# =============================================================================
+
+# ---------- Tier0: Kubernetes 核心（kubeadm --image-repository 用，basename）----------
+registry.k8s.io/kube-apiserver:v1.31.0              kube-apiserver              Tier0
+registry.k8s.io/kube-controller-manager:v1.31.0     kube-controller-manager     Tier0
+registry.k8s.io/kube-scheduler:v1.31.0              kube-scheduler              Tier0
+registry.k8s.io/kube-proxy:v1.31.0                  kube-proxy                  Tier0
+registry.k8s.io/coredns/coredns:v1.11.1             coredns                     Tier0
+registry.k8s.io/etcd:3.5.15-0                       etcd                        Tier0
+registry.k8s.io/pause:3.9                           pause                       Tier0
+
+# ---------- Tier0: 控制面入口 / CNI ----------
+ghcr.io/kube-vip/kube-vip:v0.8.7                    kube-vip                    Tier0
+quay.io/cilium/cilium:v1.16.0                       quay.cilium.cilium          Tier0
+quay.io/cilium/operator-generic:v1.16.0             quay.cilium.operator-generic Tier0
+quay.io/cilium/hubble-relay:v1.16.0                 quay.cilium.hubble-relay    Tier0
+quay.io/cilium/hubble-ui:v1.16.0                    quay.cilium.hubble-ui       Tier0
+quay.io/cilium/hubble-ui-backend:v1.16.0            quay.cilium.hubble-ui-backend Tier0
+quay.io/cilium/certgen:v0.2.0                       quay.cilium.certgen         Tier0
+
+# ---------- Tier1: 存储 (Longhorn) ----------
+docker.io/longhornio/longhorn-manager:v1.7.0        longhornio.longhorn-manager              Tier1
+docker.io/longhornio/longhorn-engine:v1.7.0         longhornio.longhorn-engine               Tier1
+docker.io/longhornio/longhorn-ui:v1.7.0             longhornio.longhorn-ui                   Tier1
+docker.io/longhornio/longhorn-instance-manager:v1.7.0 longhornio.longhorn-instance-manager   Tier1
+docker.io/longhornio/longhorn-share-manager:v1.7.0  longhornio.longhorn-share-manager        Tier1
+docker.io/longhornio/backing-image-manager:v1.7.0   longhornio.backing-image-manager         Tier1
+docker.io/longhornio/csi-attacher:v4.4.3            longhornio.csi-attacher                  Tier1
+docker.io/longhornio/csi-provisioner:v3.6.3         longhornio.csi-provisioner               Tier1
+docker.io/longhornio/csi-resizer:v1.9.3             longhornio.csi-resizer                   Tier1
+docker.io/longhornio/csi-snapshotter:v6.3.3         longhornio.csi-snapshotter               Tier1
+docker.io/longhornio/csi-node-driver-registrar:v2.10.1 longhornio.csi-node-driver-registrar  Tier1
+docker.io/longhornio/livenessprobe:v2.13.1          longhornio.livenessprobe                 Tier1
+
+# ---------- Tier1: cert-manager ----------
+quay.io/jetstack/cert-manager-controller:v1.15.3    quay.jetstack.cert-manager-controller    Tier1
+quay.io/jetstack/cert-manager-webhook:v1.15.3       quay.jetstack.cert-manager-webhook       Tier1
+quay.io/jetstack/cert-manager-cainjector:v1.15.3    quay.jetstack.cert-manager-cainjector    Tier1
+quay.io/jetstack/cert-manager-acmesolver:v1.15.3    quay.jetstack.cert-manager-acmesolver    Tier1
+quay.io/jetstack/cert-manager-startupapicheck:v1.15.3 quay.jetstack.cert-manager-startupapicheck Tier1
+
+# ---------- Tier2: 监控 / 可观测性（按需）----------
+quay.io/prometheus/prometheus:v2.54.0               quay.prometheus.prometheus               Tier2
+quay.io/prometheus/alertmanager:v0.27.0             quay.prometheus.alertmanager             Tier2
+quay.io/prometheus/node-exporter:v1.8.2             quay.prometheus.node-exporter            Tier2
+registry.k8s.io/kube-state-metrics:v2.13.0          registry.k8s.io.kube-state-metrics       Tier2
+quay.io/prometheus-operator/prometheus-operator:v0.76.0 quay.prometheus-operator.prometheus-operator Tier2
+docker.io/grafana/grafana:11.1.0                    docker.io.grafana.grafana                Tier2
+docker.io/grafana/loki:3.1.0                        docker.io.grafana.loki                   Tier2
+docker.io/grafana/promtail:3.1.0                    docker.io.grafana.promtail               Tier2
+quay.io/prometheus/blackbox-exporter:v0.25.0        quay.prometheus.blackbox-exporter        Tier2
+otel/opentelemetry-collector-contrib:0.104.0        otel.opentelemetry-collector-contrib     Tier2
+
+# ---------- Tier2: 运维 / 数据库 Operator ----------
+registry.k8s.io/metrics-server/metrics-server:v0.7.1 registry.k8s.io.metrics-server.metrics-server Tier2
+ghcr.io/cloudnative-pg/cloudnative-pg:1.24.0        ghcr.io.cloudnative-pg.cloudnative-pg    Tier2
+quay.io/opstree/redis-operator:v0.17.0              quay.opstree.redis-operator              Tier2
+
+# ---------- Tier2: IdP (Casdoor) ----------
+docker.io/casbin/casdoor:latest                     docker.io.casbin.casdoor                 Tier2
+
+# ---------- Tier2: 常用工具 ----------
+docker.io/library/busybox:1.36                      docker.io.library.busybox                Tier2
+docker.io/library/nginx:stable-alpine               docker.io.library.nginx                  Tier2
+docker.io/library/alpine:3.20                       docker.io.library.alpine                 Tier2
+docker.io/curlimages/curl:8.9.0                     docker.io.curlimages.curl                Tier2
+
+# =============================================================================
+# 注意:
+#   - 默认只预载 Tier0+Tier1; Tier2 用 make acr-prepare TIERS=Tier0,Tier1,Tier2
+#   - Helm chart 镜像用 registry/helm-images.sh 提取后追加到本清单
+#   - 版本(Tag)必须与 chart 默认一致，否则需同步改 values
+# =============================================================================

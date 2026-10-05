@@ -1,6 +1,7 @@
 #cloud-config
 # Worker 节点 cloud-init 配置
-hostname: k8s-worker
+hostname: __HOSTNAME__
+manage_etc_hosts: true
 
 users:
   - name: root
@@ -23,6 +24,19 @@ packages:
   - nfs-common
 
 write_files:
+  - path: /etc/apt/sources.list.d/debian.sources
+    content: |
+      Types: deb
+      URIs: https://mirrors.aliyun.com/debian
+      Suites: trixie trixie-updates trixie-backports
+      Components: main
+      Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+      Types: deb
+      URIs: https://mirrors.aliyun.com/debian-security
+      Suites: trixie-security
+      Components: main
+      Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
   - path: /etc/modules-load.d/k8s.conf
     content: |
       overlay

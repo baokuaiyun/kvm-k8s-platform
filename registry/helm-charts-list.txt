@@ -1,0 +1,17 @@
+# =============================================================================
+# Helm Chart 清单
+# 格式: <chart>  <上游仓库名>  <上游仓库地址>  <版本>
+#   - HELM_REPO_URL 留空 -> 从上游拉取
+#   - 设置 HELM_REPO_URL(云效) -> 从云效拉取（chart 名不变）
+# =============================================================================
+
+# ---------- Tier0/Tier1: 阶段 1 用到 ----------
+cilium         cilium     https://helm.cilium.io                1.16.0
+longhorn       longhorn   https://charts.longhorn.io            1.7.0
+cert-manager   jetstack   https://charts.jetstack.io            v1.15.3
+
+# ---------- Tier2: 阶段 2/3 用到（按需开启）----------
+# kube-prometheus-stack  prometheus-community  https://prometheus-community.github.io/helm-charts  65.1.1
+# loki                   grafana               https://grafana.github.io/helm-charts            6.6.2
+# harbor                 harbor                https://helm.goharbor.io                        1.15.0
+# gitlab                 gitlab                https://charts.gitlab.io                        8.2.0

@@ -63,16 +63,18 @@ network-create:  ## 创建 NAT 网络
 image-download:  ## 下载 Debian 13 镜像
 	wget -O /data/kvm/images/debian-13.qcow2 $(BASE_IMAGE_URL)
 
-vm-create:  ## 创建 5 台 VM
-	kvm/scripts/create-vm.sh k8s-cp-1 $(CP1_IP) $(CP1_MAC) 2 4096 30G
-	kvm/scripts/create-vm.sh k8s-cp-2 $(CP2_IP) $(CP2_MAC) 2 4096 30G
-	kvm/scripts/create-vm.sh k8s-cp-3 $(CP3_IP) $(CP3_MAC) 2 4096 30G
-	kvm/scripts/create-vm.sh k8s-worker-1 $(WK1_IP) $(WK1_MAC) 4 4096 50G
-	kvm/scripts/create-vm.sh k8s-worker-2 $(WK2_IP) $(WK2_MAC) 4 4096 50G
+vm-create:  ## 创建起步节点 (1CP+1W)
+	# 按 CP_INIT_COUNT/WK_INIT_COUNT 创建
+	# 扩容: make vm-add-cp IDX=2 / make vm-add-worker IDX=2
 
-k8s-install:  ## kubeadm 安装集群
-	bash kubernetes/scripts/install-common.sh
-	bash kubernetes/scripts/init-control-plane.sh
+k8s-install:  ## kubeadm 安装集群 (1CP+1W, endpoint=VIP)
+	bash kubernetes/scripts/install-common.sh   # kubelet/kubeadm/containerd
+	bash kubernetes/scripts/setup-kube-vip.sh   # VIP 静态 Pod（init 前）
+	bash kubernetes/scripts/init-control-plane.sh  # endpoint=k8s-api.test.baokuaiyun.com:6443
+	bash kubernetes/scripts/join-worker.sh all  # 加入起步 worker
+
+scale-out:  ## 扩容到 3CP+2W
+	# vm-add-cp IDX=2/3 + vm-add-worker IDX=2 + join
 
 cni:  ## 安装 Cilium
 	helm upgrade --install cilium cilium/cilium -n kube-system -f kubernetes/configs/cilium-values.yaml

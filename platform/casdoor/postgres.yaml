@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: casdoor-postgres
+  namespace: casdoor
+type: Opaque
+stringData:
+  POSTGRES_USER: __CASDOOR_DB_USER__
+  POSTGRES_PASSWORD: __CASDOOR_DB_PASS__
+  POSTGRES_DB: __CASDOOR_DB_NAME__
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: casdoor-postgres-data
+  namespace: casdoor
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: casdoor-postgres
+  namespace: casdoor
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: casdoor-postgres
+  template:
+    metadata:
+      labels:
+        app: casdoor-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: __IMAGE_REPOSITORY__/docker.io.bitnami.postgresql:16.3.0
+          envFrom:
+            - secretRef:
+                name: casdoor-postgres
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/postgresql
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: casdoor-postgres-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: casdoor-postgres
+  namespace: casdoor
+spec:
+  selector:
+    app: casdoor-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

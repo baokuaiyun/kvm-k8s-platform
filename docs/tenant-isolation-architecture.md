@@ -7,7 +7,7 @@
 vCluster 在**一个物理集群内**创建**完全隔离的虚拟 Kubernetes 控制面**，每个租户拥有独立的 API Server、CRD、RBAC。
 
 ```
-┌─ 物理集群 (KVM: 3CP + 2Worker) ─────────────────────────────┐
+┌─ 物理集群 (KVM: 3CP + 2Worker；1CP+1W 起步，make scale-out 扩容) ─┐
 │                                                                │
 │  ┌──── vCluster: team-a (ns: vc-team-a) ────────────┐        │
 │  │  ┌──────────────┐   ┌──────────────┐              │        │

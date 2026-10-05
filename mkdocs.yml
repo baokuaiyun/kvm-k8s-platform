@@ -59,4 +59,7 @@ nav:
   - 域名/证书迁移: baokuaiyun-domain-migration.md
   - 多租户架构: tenant-isolation-architecture.md
   - Makefile 设计: makefile-design.md
+  - ACR 镜像同步: acr-image-sync.md
+  - Helm Chart 分发: helm-chart-distribution.md
+  - 统一用户管理(Casdoor): identity-sso-casdoor.md
   - 镜像管理: image-management.md

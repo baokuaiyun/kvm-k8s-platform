@@ -1,13 +1,41 @@
 # Cilium CNI 配置
+# 镜像统一走本域仓库（__IMAGE_REPOSITORY__ 由 Makefile 用 sed 注入）
 kubeProxyReplacement: true
-k8sServiceHost: 192.168.124.10
+# 指向控制面 VIP（kube-vip 持有），而非单台 CP IP，保证 API 高可用
+k8sServiceHost: 192.168.124.30
 k8sServicePort: 6443
 ipam:
   mode: kubernetes
+
+image:
+  repository: __IMAGE_REPOSITORY__/quay.cilium.cilium
+  tag: v1.16.0
+  useDigest: false
+
+operator:
+  replicas: 2
+  image:
+    repository: __IMAGE_REPOSITORY__/quay.cilium.operator-generic
+    tag: v1.16.0
+
+certgen:
+  image:
+    repository: __IMAGE_REPOSITORY__/quay.cilium.certgen
+    tag: v0.2.0
+
 hubble:
   relay:
     enabled: true
+    image:
+      repository: __IMAGE_REPOSITORY__/quay.cilium.hubble-relay
+      tag: v1.16.0
   ui:
     enabled: true
-operator:
-  replicas: 2
+    frontend:
+      image:
+        repository: __IMAGE_REPOSITORY__/quay.cilium.hubble-ui
+        tag: v1.16.0
+    backend:
+      image:
+        repository: __IMAGE_REPOSITORY__/quay.cilium.hubble-ui-backend
+        tag: v1.16.0

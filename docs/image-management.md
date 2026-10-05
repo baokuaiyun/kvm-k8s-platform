@@ -1,6 +1,10 @@
 # 镜像管理：预下载清单 + 推送到 Harbor
 
 > 背景：国内网络访问 Docker Hub / gcr.io / quay.io 不稳定，需提前下载基础镜像，推送导入本地 Harbor，集群节点从 Harbor 拉取。
+>
+> **引导期（创集群前）的镜像准备已独立成文 → [`acr-image-sync.md`](acr-image-sync.md)**：
+> KVM 宿主机从 ACR 拉取并**重命名成本域镜像**、预载进节点 containerd，再以本域 `--image-repository` 初始化集群。
+> 本文档保留「镜像清单 / Harbor 推送 / proxy-cache / containerd mirror」等**运行期**内容。
 
 ## 一、镜像清单（registry/images-list.txt）
 
