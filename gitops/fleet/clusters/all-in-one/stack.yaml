@@ -1,0 +1,12 @@
+# 集群叠加栈声明（单独=一层；叠加=多层）
+# 由 deploy/CI 读此生成 ResourceSet/FluxInstance；Flux 按 stack 收敛。
+cluster: all-in-one
+type: all                 # A 管理/开发者 | B 生产/业务 | all 合一
+env: drill                # drill | prod | enterprise
+stack:                    # 叠加顺序（越靠前越底层）
+  - core
+  - data
+  - platform
+  - observability
+  - gitlab
+overrides: {}             # 叠加覆盖：{layer: {key: value}}

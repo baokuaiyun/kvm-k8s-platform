@@ -31,6 +31,7 @@
 | 分仓骨架（拓扑 + 跨仓契约，生产时执行） | — | — | — | ✅ | `docs/repo-topology.md` + `gitops/repo-split.yaml`（机器可读 glob→仓→owner→制品）+ `CODEOWNERS`（模拟边界）+ `apps/README.md` 占位 |
 | 制品解析 lock 命名修齐 | 工具链 | — | — | ✅ | lock=`<mode>-<env>-<type>.lock`；resolve/sync/verify-bootstrap 已对齐；`make verify-bootstrap` 通过（73 条） |
 | GitOps 期望态独立到 `gitops/` + 参数说明 | 工具链 | toolchain | — | ✅ | fleet/components/tenants/roles/planes/profiles/repo-split → `gitops/`；新增 `gitops/{README,settings}.md`、`docs/parameters.md`；`locks` 移至 `gitops/locks`（gitignored）；Makefile/bootstrap/CODEOWNERS/docs 引用同步；解析/验收通过 |
+| fleet 叠加(stack)与单独(standalone) | 工具链 | toolchain | — | ✅ | `gitops/fleet/layers/*` + `clusters/<c>/stack.yaml`；`FLEET_MODES` 并集去重+类型过滤；lock=`<units>-<env>-<type>.lock`；`ENABLE_FLUX=false` → `bootstrap/member/standalone.sh`；实测 core+data=31 / core+gitlab(A)=39 / 同步跳过 |
 
 ## 待办
 

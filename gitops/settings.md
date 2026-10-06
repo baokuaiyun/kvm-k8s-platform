@@ -5,7 +5,8 @@
 | 变量 | 含义 | 默认 | 作用域 |
 |---|---|---|---|
 | `CLUSTER_TYPE` | 集群类型 A 管理/开发者 · B 生产/业务 · all 合一 | `all` | variables.mk/profile |
-| `FLEET_MODE` | fleet 模式（all-in-one/mgmt/biz/data） | `all-in-one` | 命令/profile |
+| `FLEET_MODE` | 单个 fleet 模式/layer（单独） | `all-in-one` | 命令/profile |
+| `FLEET_MODES` | 多单元叠加（逗号列表，并集去重） | 空 | 命令/profile |
 | `FLEET_ENV` | 环境（drill/prod/enterprise） | `drill` | 命令/profile |
 | `TOOLCHAIN_MODE` | selfhost 自托管 Harbor/Git · consume 消费外部 | `selfhost` | profile |
 | `ENABLE_FLUX` | 是否安装 Flux | `true` | profile |

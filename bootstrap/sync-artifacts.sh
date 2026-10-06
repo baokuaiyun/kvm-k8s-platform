@@ -4,7 +4,7 @@
 set -euo pipefail
 
 GITOPS_DIR="${GITOPS_DIR:-$(cd "$(dirname "$0")/../gitops" && pwd)}"
-MODE="${1:-all-in-one}"
+UNITS_ARG="${1:-${FLEET_MODES:-${FLEET_MODE:-all-in-one}}}"
 ENVNAME="${2:-drill}"
 SIGN=0; [ "${3:-}" = "--sign" ] && SIGN=1
 
@@ -21,8 +21,10 @@ MIRROR_GHCR="${MIRROR_GHCR:-ghcr.dockerproxy.net}"
 MIRROR_K8S="${MIRROR_K8S:-k8s-gcr.m.daocloud.io}"
 
 CTYPE="${CLUSTER_TYPE:-all}"
-LOCK="${GITOPS_DIR}/locks/${MODE}-${ENVNAME}-${CTYPE}.lock"
-[ -f "$LOCK" ] || { echo "[!] 无 lock：${LOCK}（先跑 make resolve-artifacts FLEET_MODE=${MODE} FLEET_ENV=${ENVNAME} CLUSTER_TYPE=${CTYPE}）"; exit 1; }
+IFS=',' read -r -a UNITS <<< "$UNITS_ARG"
+LNAME="$(printf '%s\n' "${UNITS[@]}" | sort | paste -sd'+' -)"
+LOCK="${GITOPS_DIR}/locks/${LNAME}-${ENVNAME}-${CTYPE}.lock"
+[ -f "$LOCK" ] || { echo "[!] 无 lock：${LOCK}（先跑 make resolve-artifacts FLEET_MODES=${UNITS_ARG} FLEET_ENV=${ENVNAME} CLUSTER_TYPE=${CTYPE}）"; exit 1; }
 
 mirror() {
   local s="$1" rest
@@ -58,4 +60,4 @@ while read -r src dst; do
 done < "$LOCK"
 
 echo ""
-echo "[+] 完成 mode=${MODE} env=${ENVNAME}: 新增=${ok} 跳过=${skip} 失败=${fail}"
+echo "[+] 完成 units=${LNAME} env=${ENVNAME}: 新增=${ok} 跳过=${skip} 失败=${fail}"

@@ -41,6 +41,23 @@ repo/
 └── profiles/                  # 规模/环境变量（drill/prod/enterprise）
 ```
 
+## 二.1 叠加（stack）与单独（standalone）
+
+**同一套机制**：`stack` = "单元集合"，集合大小 1 = 单独，>1 = 叠加。
+
+- **layer**（`gitops/fleet/layers/<layer>/components.yaml`）：可组合 bundle。
+  `core / data / platform / observability / gitlab`（可增删）。
+- **集群叠加栈**（`gitops/fleet/clusters/<cluster>/stack.yaml`）：声明 `type/env/stack[]/overrides`。
+- **解析/导入**：`FLEET_MODES=core,data`（逗号=叠加；单个=单独）→ **并集+去重+类型过滤** →
+  `gitops/locks/<units排序+连接>-<env>-<type>.lock`。
+  ```bash
+  make resolve-artifacts FLEET_MODES=core,data FLEET_ENV=drill CLUSTER_TYPE=all
+  make sync-artifacts    FLEET_MODES=core,data FLEET_ENV=drill CLUSTER_TYPE=all
+  make resolve-artifacts FLEET_MODE=all-in-one            # 单独（预设）
+  ```
+- **单独集群（不用 Flux）**：`ENABLE_FLUX=false` → `bootstrap/member/standalone.sh`（脚本/Operator 管理）。
+- `all-in-one` 保留为"全部层"的预设（≈叠加所有 layer）。
+
 ## 三、交付流（Git → CI → OCI → Flux）
 
 ```

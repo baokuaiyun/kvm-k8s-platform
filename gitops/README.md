@@ -6,7 +6,10 @@
 ## 目录
 ```
 gitops/
-├── fleet/        # clusters/<cluster>/{flux-instance,stack}、layers/<layer>/
+├── fleet/
+│   ├── layers/<layer>/components.yaml        # 可组合 layer（core/data/platform/observability/gitlab）
+│   ├── clusters/<cluster>/stack.yaml         # 集群叠加栈（type/env/stack[]/overrides）
+│   └── <mode>/components.yaml                # 预设（all-in-one/mgmt/biz/data）
 ├── components/    # <plane>/<name>/component.yaml（组件声明：type/images/artifacts）
 ├── tenants/       # 租户 ResourceSet
 ├── roles/         # 集群定位骨架

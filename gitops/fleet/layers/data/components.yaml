@@ -1,0 +1,4 @@
+layer: data
+components:
+  - cloudnative-pg
+  - redis-operator

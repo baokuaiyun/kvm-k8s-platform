@@ -312,21 +312,24 @@ gitops: flux-operator ## 安装 Flux Operator 并接入集群模式 fleet（all-
 
 FLEET_ENV ?= drill
 SIGN ?= --sign
+FLEET_MODES ?=
+# 叠加（多单元）或单个 mode：FLEET_MODES=core,data,platform 或 FLEET_MODE=all-in-one
+FLEET_UNITS = $(if $(FLEET_MODES),$(FLEET_MODES),$(FLEET_MODE))
 
-resolve-artifacts: ## 解析某模式制品: make resolve-artifacts MODE=all-in-one FLEET_ENV=drill
-	@echo "[+] resolve artifacts (mode=$(FLEET_MODE) env=$(FLEET_ENV) type=$(CLUSTER_TYPE))..."
+resolve-artifacts: ## 解析制品（单/叠加）: make resolve-artifacts FLEET_MODES=core,data FLEET_ENV=drill
+	@echo "[+] resolve artifacts (units=$(FLEET_UNITS) env=$(FLEET_ENV) type=$(CLUSTER_TYPE))..."
 	HARBOR_HOST=$(HARBOR_HOST) HARBOR_PROJECT=$(HARBOR_PROJECT) HELM_CHARTS_DIR=$(HELM_CHARTS_DIR) CLUSTER_TYPE=$(CLUSTER_TYPE) \
-	bash bootstrap/resolve-artifacts.sh $(FLEET_MODE) $(FLEET_ENV)
+	bash bootstrap/resolve-artifacts.sh "$(FLEET_UNITS)" $(FLEET_ENV)
 
-sync-artifacts: ## 检测式按需导入 Harbor（默认签名）: make sync-artifacts
-	@echo "[+] sync artifacts (mode=$(FLEET_MODE) env=$(FLEET_ENV))..."
+sync-artifacts: ## 检测式按需导入 Harbor（默认签名，单/叠加）
+	@echo "[+] sync artifacts (units=$(FLEET_UNITS) env=$(FLEET_ENV))..."
 	HARBOR_HOST=$(HARBOR_HOST) HARBOR_PROJECT=$(HARBOR_PROJECT) \
 	HARBOR_ROBOT_PASS='$(HARBOR_ROBOT_PASS)' CLUSTER_TYPE=$(CLUSTER_TYPE) \
 	MIRROR_DOCKER=$(MIRROR_DOCKER) MIRROR_QUAY=$(MIRROR_QUAY) MIRROR_GHCR=$(MIRROR_GHCR) MIRROR_K8S=$(MIRROR_K8S) \
-	bash bootstrap/sync-artifacts.sh $(FLEET_MODE) $(FLEET_ENV) $(SIGN)
+	bash bootstrap/sync-artifacts.sh "$(FLEET_UNITS)" $(FLEET_ENV) $(SIGN)
 
-publish-artifacts: resolve-artifacts sync-artifacts ## 解析+检测式导入+签名（按 fleet 模式，按需增量）
-	@echo "[+] publish-artifacts 完成 (mode=$(FLEET_MODE) env=$(FLEET_ENV))"
+publish-artifacts: resolve-artifacts sync-artifacts ## 解析+检测式导入+签名（单/叠加，按需增量）
+	@echo "[+] publish-artifacts 完成 (units=$(FLEET_UNITS) env=$(FLEET_ENV))"
 
 mgmt-bootstrap: ## 本集群引导: Day-0→核心→数据平面→Harbor→制品→Flux: make mgmt-bootstrap FLEET_MODE=mgmt
 	HARBOR_HOST=$(HARBOR_HOST) HARBOR_PROJECT=$(HARBOR_PROJECT) HARBOR_ROBOT_PASS='$(HARBOR_ROBOT_PASS)' \
@@ -344,7 +347,7 @@ verify-bootstrap: ## 引导面验收（Harbor/Flux/模式制品）
 	@helm -n flux-system list | grep -q flux-operator && echo "  flux-operator: OK" || echo "  flux-operator: 缺失"
 	@kubectl -n flux-system get fluxinstance flux >/dev/null 2>&1 && echo "  FluxInstance: OK" || echo "  FluxInstance: 缺失"
 	@curl -sk --noproxy '*' -o /dev/null -w "  harbor: %{http_code}\n" https://$(HARBOR_HOST)/api/v2.0/ping || true
-	@if [ -f gitops/locks/$(FLEET_MODE)-$(FLEET_ENV)-$(CLUSTER_TYPE).lock ]; then echo "  lock: gitops/locks/$(FLEET_MODE)-$(FLEET_ENV)-$(CLUSTER_TYPE).lock ($$(grep -vc '^#' gitops/locks/$(FLEET_MODE)-$(FLEET_ENV)-$(CLUSTER_TYPE).lock) 条)"; else echo "  lock: 缺失（make resolve-artifacts）"; fi
+	@ls -1 gitops/locks/*-$(FLEET_ENV)-$(CLUSTER_TYPE).lock 2>/dev/null | while read -r l; do echo "  lock: $$l ($$(grep -vc '^#' "$$l") 条)"; done; ls gitops/locks/*-$(FLEET_ENV)-$(CLUSTER_TYPE).lock >/dev/null 2>&1 || echo "  lock: 缺失（make resolve-artifacts）"
 
 tenants: ## 配置三模式租户
 	@echo "[+] 应用租户配置..."

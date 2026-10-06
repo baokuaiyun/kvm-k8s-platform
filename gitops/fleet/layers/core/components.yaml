@@ -1,0 +1,7 @@
+# layer: core —— 集群核心
+layer: core
+components:
+  - cilium
+  - longhorn
+  - cert-manager
+  - kgateway

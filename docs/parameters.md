@@ -68,7 +68,8 @@
 | 变量 | 含义 | 默认 | 作用域 |
 |---|---|---|---|
 | `CLUSTER_TYPE` | A 管理/开发者 · B 生产/业务 · all 合一 | `all` | G/P |
-| `FLEET_MODE` | fleet 模式（all-in-one/mgmt/biz/data） | `all-in-one` | 命令/P |
+| `FLEET_MODE` | 单个 fleet 模式/layer（单独） | `all-in-one` | 命令/P |
+| `FLEET_MODES` | 多单元叠加（逗号列表，如 `core,data,platform`） | 空 | 命令/P |
 | `FLEET_ENV` | 环境（drill/prod/enterprise） | `drill` | 命令/P |
 | `TOOLCHAIN_MODE` | selfhost \| consume | `selfhost` | P |
 | `ENABLE_FLUX` | 是否安装 Flux | `true` | P |
