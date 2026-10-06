@@ -58,6 +58,19 @@ repo/
 - **单独集群（不用 Flux）**：`ENABLE_FLUX=false` → `bootstrap/member/standalone.sh`（脚本/Operator 管理）。
 - `all-in-one` 保留为"全部层"的预设（≈叠加所有 layer）。
 
+### stack → ResourceSet（真实渲染，已实现）
+- `bootstrap/render-stack.sh <units> <env> <type> [--apply]`：按 stack 组件集生成 `ResourceSet/stack`，
+  为每个组件渲染：Namespace、`flux` SA+RBAC、`harbor-auth`/`cosign-pub` 复制、`OCIRepository`(insecure+verify cosign)、`Kustomization`(path `./overlays/<env>`)。
+- **仅纳入"部署组件"**（本地有 `overlays/<env>`）且**制品已构建**（`oras` 检测）；无则跳过。
+- `bootstrap/build-component.sh <plane>/<name> [tag] --push --sign`：把组件目录 `base/ + overlays/` 打包为 OCI 制品 + cosign 签名。
+- 命令：
+  ```bash
+  make build-component C=apps/demo SIGN=--sign      # 打包组件制品
+  make render-stack FLEET_MODES=demo                # 生成并 apply ResourceSet/stack
+  make gitops FLEET_MODE=all-in-one                 # FluxInstance + stack 渲染
+  ```
+- 示例组件 `gitops/components/apps/demo`（安全验证全链路：stack→ResourceSet→OCIRepository(验签)→Kustomization→ConfigMap）。
+
 ## 三、交付流（Git → CI → OCI → Flux）
 
 ```

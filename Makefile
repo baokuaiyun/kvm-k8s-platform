@@ -12,6 +12,7 @@ include variables.mk
 	kvm-init dirs network-create image-download \
 	cni storage storage-class cert security monitoring agents platform harbor gitlab platform-data gitops flux-operator tenants operators images \
 	resolve-artifacts sync-artifacts publish-artifacts verify-bootstrap mgmt-bootstrap member-bootstrap \
+	build-component render-stack \
 	backup-upgrade velero verify-cluster verify-monitoring verify-apps verify-storage app-backup app-restore
 
 DOCS_PORT ?= 8000
@@ -304,11 +305,26 @@ flux-operator: ## 安装/升级 Flux Operator（Helm；chart+镜像走 Harbor，
 	GHCR_MIRROR=$(GHCR_MIRROR) \
 	bash platform/flux/install.sh
 
-gitops: flux-operator ## 安装 Flux Operator 并接入集群模式 fleet（all-in-one）
+gitops: flux-operator ## 安装 Flux Operator 并接入 fleet（FluxInstance + stack ResourceSet）
 	@echo "[+] 应用 gitops/fleet/${FLEET_MODE} FluxInstance ..."
 	kubectl apply -f gitops/fleet/$(FLEET_MODE)/flux-instance.yaml
 	@echo "[+] 应用租户 ResourceSet 样板 ..."
 	kubectl apply -f gitops/tenants/infra.yaml
+	@echo "[+] 由 stack 渲染并应用 ResourceSet（仅纳入已构建组件）..."
+	HARBOR_HOST=$(HARBOR_HOST) HARBOR_PROJECT=$(HARBOR_PROJECT) HARBOR_ROBOT_PASS='$(HARBOR_ROBOT_PASS)' \
+	FLEET_MODES=$(FLEET_UNITS) FLEET_ENV=$(FLEET_ENV) CLUSTER_TYPE=$(CLUSTER_TYPE) \
+	bash bootstrap/render-stack.sh "$(FLEET_UNITS)" $(FLEET_ENV) $(CLUSTER_TYPE) --apply
+
+C ?=
+TAG ?= latest
+build-component: ## 打包组件为 OCI 制品: make build-component C=apps/demo [TAG=latest] [SIGN=--sign]
+	HARBOR_HOST=$(HARBOR_HOST) HARBOR_PROJECT=$(HARBOR_PROJECT) HARBOR_ROBOT_PASS='$(HARBOR_ROBOT_PASS)' \
+	bash bootstrap/build-component.sh $(C) $(TAG) --push $(SIGN)
+
+render-stack: ## 由 stack 生成并 apply ResourceSet: make render-stack FLEET_MODES=demo
+	HARBOR_HOST=$(HARBOR_HOST) HARBOR_PROJECT=$(HARBOR_PROJECT) HARBOR_ROBOT_PASS='$(HARBOR_ROBOT_PASS)' \
+	FLEET_MODES=$(FLEET_UNITS) FLEET_ENV=$(FLEET_ENV) CLUSTER_TYPE=$(CLUSTER_TYPE) \
+	bash bootstrap/render-stack.sh "$(FLEET_UNITS)" $(FLEET_ENV) $(CLUSTER_TYPE) --apply
 
 FLEET_ENV ?= drill
 SIGN ?= --sign

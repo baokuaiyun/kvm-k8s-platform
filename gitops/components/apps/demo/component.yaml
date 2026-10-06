@@ -1,0 +1,5 @@
+name: demo
+plane: apps
+type: [A, B]
+fleet: [all-in-one, mgmt, biz]
+env: [drill, prod, enterprise]

@@ -21,10 +21,15 @@ gitops/
 
 ## 用法
 ```bash
-# 解析某模式制品 -> gitops/locks/<mode>-<env>-<type>.lock
-make resolve-artifacts FLEET_MODE=all-in-one FLEET_ENV=drill CLUSTER_TYPE=all
+# 解析某单元/叠加集制品 -> gitops/locks/<units>-<env>-<type>.lock
+make resolve-artifacts FLEET_MODES=core,data FLEET_ENV=drill CLUSTER_TYPE=all   # 叠加
+make resolve-artifacts FLEET_MODE=all-in-one                                    # 单独
 # 检测式按需导入 Harbor（+签名）
-make sync-artifacts    FLEET_MODE=all-in-one FLEET_ENV=drill CLUSTER_TYPE=all
+make sync-artifacts FLEET_MODES=core,data FLEET_ENV=drill CLUSTER_TYPE=all
+# 组件制品：目录(base+overlays) -> OCI + cosign
+make build-component C=apps/demo SIGN=--sign
+# 由 stack 生成并 apply ResourceSet（真实渲染组件）
+make render-stack FLEET_MODES=demo
 # 安装 Flux + 接入模式
 make gitops FLEET_MODE=all-in-one
 ```
