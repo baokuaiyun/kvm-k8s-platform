@@ -1,0 +1,115 @@
+# GitLab 实例（route C：Operator 3.4.1 管理 + 内置 CNG chart 10.4.1 / v19.4.1）
+# 镜像 -> 本域 Harbor（scheme C 短名）；外部 PG/Redis=platform-data；对象存储=MinIO
+apiVersion: apps.gitlab.com/v1beta1
+kind: GitLab
+metadata:
+  name: gitlab
+  namespace: gitlab
+spec:
+  chart:
+    version: "10.4.1"
+    values:
+      global:
+        edition: ce
+        hosts:
+          domain: test.baokuaiyun.com
+          https: true
+        gitlabVersion: v19.4.1
+
+        # ---- 镜像 -> Harbor ----
+        communityImages:
+          migrations: {repository: harbor.test.baokuaiyun.com/baokuaiyun/gitlab-toolbox-ce}
+          sidekiq:    {repository: harbor.test.baokuaiyun.com/baokuaiyun/gitlab-sidekiq-ce}
+          toolbox:    {repository: harbor.test.baokuaiyun.com/baokuaiyun/gitlab-toolbox-ce}
+          webservice: {repository: harbor.test.baokuaiyun.com/baokuaiyun/gitlab-webservice-ce}
+          workhorse:  {repository: harbor.test.baokuaiyun.com/baokuaiyun/gitlab-workhorse-ce}
+        certificates:
+          image: {repository: harbor.test.baokuaiyun.com/baokuaiyun/certificates}
+        kubectl:
+          image: {repository: harbor.test.baokuaiyun.com/baokuaiyun/kubectl}
+        gitlabBase:
+          image: {repository: harbor.test.baokuaiyun.com/baokuaiyun/gitlab-base}
+
+        # ---- 外部 PostgreSQL（platform-data / CNPG）----
+        psql:
+          host: platform-pg-rw.platform-data.svc.cluster.local
+          port: 5432
+          username: gitlab
+          database: gitlabhq_production
+          password: {secret: gitlab-pg-cred, key: password}
+
+        # ---- 外部 Redis（platform-data，DB 3）----
+        redis:
+          host: platform-redis.platform-data.svc.cluster.local
+          port: 6379
+          database: 3
+          auth: {enabled: true, secret: gitlab-redis-cred, key: password}
+
+        # ---- 对象存储（MinIO / S3）----
+        appConfig:
+          object_store:
+            enabled: true
+            connection: {secret: gitlab-object-storage, key: connection}
+            proxy_download: true
+          lfs:            {enabled: true, bucket: gitlab-lfs}
+          artifacts:      {enabled: true, bucket: gitlab-artifacts}
+          uploads:        {enabled: true, bucket: gitlab-uploads}
+          packages:       {enabled: true, bucket: gitlab-packages}
+          external_diffs: {enabled: true, bucket: gitlab-mr-diffs}
+          terraform_state: {enabled: true, bucket: gitlab-terraform-state}
+          ci_secure_files: {enabled: true, bucket: gitlab-ci-secure-files}
+
+        # ---- 入口：挂到平台 kgateway Gateway ----
+        gatewayApi:
+          enabled: true
+          installEnvoy: false
+          configureEnvoy: false
+          configureCertmanager: false
+          httpToHttpsRedirect: false
+          gatewayRef:
+            name: gateway
+            namespace: gateway
+        ingress:
+          enabled: false
+          configureCertmanager: false
+
+      # 关闭不需要/不可达的子 chart
+      postgresql:  {install: false}
+      redis:       {install: false}
+      prometheus:  {install: false}
+      gitlab-runner: {install: false}
+      gitlab-zoekt:  {install: false}
+      openbao:       {install: false}
+      traefik:       {install: false}
+      haproxy:       {install: false}
+      nginx-ingress: {enabled: false}
+      certmanager:   {install: false}
+      upgradeCheck:  {enabled: false}
+      registry:      {enabled: false}
+      minio:         {enabled: false}
+
+      shared-secrets:
+        selfsign:
+          image: {repository: harbor.test.baokuaiyun.com/baokuaiyun/cfssl-self-sign}
+
+      gitlab:
+        gitaly:
+          image: {repository: harbor.test.baokuaiyun.com/baokuaiyun/gitaly}
+          persistence:
+            size: 10Gi
+            storageClass: longhorn-1
+        gitlab-shell:
+          image: {repository: harbor.test.baokuaiyun.com/baokuaiyun/gitlab-shell}
+          # 集群未装 Gateway API TCPRoute CRD -> 关闭 TCPRoute，SSH 改用 Service 暴露
+          gatewayRoute: {enabled: false}
+          service: {type: NodePort}
+        gitlab-exporter:
+          image: {repository: harbor.test.baokuaiyun.com/baokuaiyun/gitlab-exporter}
+        webservice:
+          minReplicas: 1
+          # 平台既有 Gateway listener 名为 https（非 chart 默认 gitlab-web）
+          gatewayRoute: {sectionName: https}
+        kas:
+          image: {repository: harbor.test.baokuaiyun.com/baokuaiyun/gitlab-kas}
+          gatewayRoute: {sectionName: https}
+        sidekiq: {minReplicas: 1}

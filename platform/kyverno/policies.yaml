@@ -1,0 +1,43 @@
+# 示例策略（策略即代码）：供应链 + 基础安全
+# 范围限定租户命名空间，避免影响系统组件。
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: tenant-harbor-images-only
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: harbor-registry
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["team-*"]
+      validate:
+        message: "租户镜像必须来自 harbor.test.baokuaiyun.com/baokuaiyun"
+        pattern:
+          spec:
+            containers:
+              - image: "harbor.test.baokuaiyun.com/baokuaiyun/*"
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: tenant-disallow-latest-tag
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: no-latest
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["team-*"]
+      validate:
+        message: "禁止使用 :latest 标签，请固定版本"
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"

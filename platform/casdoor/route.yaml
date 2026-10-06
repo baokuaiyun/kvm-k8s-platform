@@ -5,8 +5,9 @@ metadata:
   namespace: casdoor
 spec:
   parentRefs:
-    - name: kgateway
-      namespace: kgateway-system
+    - name: gateway
+      namespace: gateway
+      sectionName: https
   hostnames:
     - __CASDOOR_HOST__
   rules:

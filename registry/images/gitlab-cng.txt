@@ -1,0 +1,17 @@
+# GitLab CNG CE 19.4.1 + Operator 3.4.1（route C）
+# 格式: <源镜像>  <Harbor 内短名(仓库)>   标签取源镜像的 tag
+# 源 registry.gitlab.com；skopeo 对其失败，用 oras 同步（见 push-gitlab-to-harbor.sh）
+registry.gitlab.com/gitlab-org/build/cng/certificates:v19.4.1                      certificates
+registry.gitlab.com/gitlab-org/build/cng/cfssl-self-sign:v19.4.1                   cfssl-self-sign
+registry.gitlab.com/gitlab-org/build/cng/gitaly:v19.4.1                            gitaly
+registry.gitlab.com/gitlab-org/build/cng/gitlab-base:v19.4.1                       gitlab-base
+registry.gitlab.com/gitlab-org/build/cng/gitlab-container-registry:v4.40.2-gitlab  gitlab-container-registry
+registry.gitlab.com/gitlab-org/build/cng/gitlab-exporter:17.0.2                    gitlab-exporter
+registry.gitlab.com/gitlab-org/build/cng/gitlab-kas:v19.4.1                        gitlab-kas
+registry.gitlab.com/gitlab-org/build/cng/gitlab-shell:v14.57.3                     gitlab-shell
+registry.gitlab.com/gitlab-org/build/cng/gitlab-sidekiq-ce:v19.4.1                 gitlab-sidekiq-ce
+registry.gitlab.com/gitlab-org/build/cng/gitlab-toolbox-ce:v19.4.1                 gitlab-toolbox-ce
+registry.gitlab.com/gitlab-org/build/cng/gitlab-webservice-ce:v19.4.1              gitlab-webservice-ce
+registry.gitlab.com/gitlab-org/build/cng/gitlab-workhorse-ce:v19.4.1               gitlab-workhorse-ce
+registry.gitlab.com/gitlab-org/build/cng/kubectl:v19.4.1                           kubectl
+registry.gitlab.com/gitlab-org/cloud-native/gitlab-operator:3.4.1                  gitlab-operator

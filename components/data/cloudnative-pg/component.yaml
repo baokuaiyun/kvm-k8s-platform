@@ -1,0 +1,9 @@
+name: cloudnative-pg
+plane: data
+fleet: [all-in-one, mgmt, data]
+env: [drill, prod, enterprise]
+chart: cloudnative-pg-0.23.2.tgz
+images:
+  - ghcr.io/cloudnative-pg/cloudnative-pg:1.25.1   harbor.test.baokuaiyun.com/baokuaiyun/cloudnative-pg-cloudnative-pg:1.25.1
+  - ghcr.io/cloudnative-pg/postgresql:16.4         harbor.test.baokuaiyun.com/baokuaiyun/cloudnative-pg-postgresql:16.4
+type: [A, B]

@@ -1,0 +1,36 @@
+# Flux Operator（Helm，chart 0.61.0，对齐 D2 官方）
+# 镜像走 Harbor；注入 Harbor 自签 CA；Web UI 经平台 kgateway Gateway 暴露。
+image:
+  repository: harbor.test.baokuaiyun.com/baokuaiyun/fluxcd/flux-operator
+  tag: v0.61.0
+  pullPolicy: IfNotPresent
+
+installCRDs: true
+
+web:
+  enabled: true
+  # chart 自带放行 web(9080) 的 NetworkPolicy（from namespaceSelector: {}）
+  networkPolicy:
+    create: true
+  # 用 chart 生成 HTTPRoute（挂平台 Gateway），替代手工 route
+  httpRoute:
+    enabled: true
+    parentRefs:
+      - name: gateway
+        namespace: gateway
+        sectionName: https
+    hostnames:
+      - flux.test.baokuaiyun.com
+
+# 注入 Harbor CA，供 operator 拉取 Harbor OCI 制品
+extraVolumes:
+  - name: harbor-ca
+    configMap:
+      name: harbor-ca
+extraVolumeMounts:
+  - name: harbor-ca
+    mountPath: /etc/ssl/harbor
+    readOnly: true
+extraEnvs:
+  - name: SSL_CERT_FILE
+    value: /etc/ssl/harbor/ca.crt

@@ -121,10 +121,15 @@ kubeadm init \
 # Cilium / Longhorn / cert-manager / Harbor / GitLab / Flux / Operator
 # 全部复用演练环境的 base 配置，仅替换 overlay 环境变量
 
-# 阿里云存储（可选，生产推荐）
-# 方案1: Longhorn（用云盘作为节点存储，保留演练一致性）
-# 方案2: 阿里云云盘 CSI 插件（原生，性能更好）
+# 阿里云存储（生产推荐：云盘 CSI，同名 SC app-storage，应用清单零改动）
 kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/alibaba-cloud-csi-driver/master/deploy/ack/disk-plugin.yaml
+# 应用规范 StorageClass（app-storage -> diskplugin.csi.alibabacloud.com，ESSD+加密）
+make storage-class STORAGE_BACKEND=alicloud STORAGE_CLASS=app-storage SNAPSHOT_CLASS=alicloud-disk
+# 对象存储/异地备份：设置 OSS 后启用 PG barman + Longhorn backupTarget + Velero
+#   PG_BACKUP_BUCKET=<bucket> S3_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
+#   BACKUP_TARGET=s3://<bucket>@oss-cn-hangzhou.aliyuncs.com/
+#   VELERO_BUCKET=<bucket> VELERO_S3_URL=oss-cn-hangzhou.aliyuncs.com
+# 详见 docs/storage-plan.md、docs/application-data.md
 ```
 
 ### 2.5 cert-manager + Let's Encrypt（生产）

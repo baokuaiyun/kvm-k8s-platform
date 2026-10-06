@@ -1,0 +1,6 @@
+# 共享平台数据命名空间（CNPG PostgreSQL + redis-operator Redis）
+# 全平台一套实例，各应用使用独立库/角色
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: __PLATFORM_DATA_NS__

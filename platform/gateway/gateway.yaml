@@ -1,0 +1,22 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: gateway
+  namespace: gateway
+spec:
+  gatewayClassName: kgateway
+  addresses:
+    - type: IPAddress
+      value: 192.168.124.30
+  listeners:
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: "*.test.baokuaiyun.com"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: wildcard-test-tls
+      allowedRoutes:
+        namespaces:
+          from: All

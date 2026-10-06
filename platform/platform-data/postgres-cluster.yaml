@@ -1,0 +1,77 @@
+# 共享 CNPG PostgreSQL 实例（全平台一套；各应用独立库，见 databases.yaml）
+# 由 deploy.sh 渲染 __占位__ 后 apply
+# 依赖: cloudnative-pg operator >= 1.25（Database CRD）
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: platform-pg
+  namespace: __PLATFORM_DATA_NS__
+spec:
+  instances: __PG_INSTANCES__
+  # 实例镜像走本域仓库（宿主机已预载 cloudnative-pg-postgresql:16.4）
+  imageName: __IMAGE_REPOSITORY__/cloudnative-pg-postgresql:16.4
+  storage:
+    size: __PG_STORAGE_SIZE__
+    storageClass: __STORAGE_CLASS__
+  # 启用超级用户（扩展/备份需要；secret: platform-pg-superuser）
+  enableSuperuserAccess: true
+  # 多实例时分散到不同节点（drill 单实例时无实际约束）
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+  # 声明式角色：密码来自同 ns 下含 username/password 两个 key 的 Secret
+  managed:
+    roles:
+      - name: harbor
+        ensure: present
+        login: true
+        createdb: true
+        passwordSecret:
+          name: harbor-pg-cred
+      - name: gitlab
+        ensure: present
+        login: true
+        superuser: true          # GitLab 迁移需自建 pg_trgm / btree_gist 等扩展
+        passwordSecret:
+          name: gitlab-pg-cred
+      - name: casdoor
+        ensure: present
+        login: true
+        createdb: true
+        passwordSecret:
+          name: casdoor-pg-cred
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+  # 备份：本地快照（快速回滚）+ 异地对象存储 barman（灾难恢复/PITR）
+  backup:
+    volumeSnapshot:
+      className: __SNAPSHOT_CLASS__
+      online: true
+# __BARMAN_BEGIN__
+    barmanObjectStore:
+      # 生产指向阿里云 OSS（S3 兼容）；drill 无对象存储时由 deploy.sh 整段删除
+      destinationPath: "s3://__PG_BACKUP_BUCKET__/"
+      endpointURL: "https://__S3_ENDPOINT__"
+      s3Credentials:
+        accessKeyId:
+          name: platform-pg-backup-cred
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: platform-pg-backup-cred
+          key: SECRET_ACCESS_KEY
+      wal:
+        compression: gzip
+        maxParallel: 2
+      data:
+        compression: gzip
+        jobs: 2
+        immediateCheckpoint: false
+# __BARMAN_END__
+# __SYNC_BEGIN__
+  postgresql:
+    synchronous:
+      method: any
+      number: __PG_SYNC_REPLICAS__
+# __SYNC_END__

@@ -1,0 +1,17 @@
+# 单副本 Longhorn StorageClass（drill 容量紧张时使用；生产用 3 副本）
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-1
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "1"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  fsType: "ext4"
+  dataLocality: "disabled"
+  disableRevisionCounter: "true"
+  unmapMarkSnapChainRemoved: "ignored"

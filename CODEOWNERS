@@ -1,0 +1,23 @@
+# 属主边界（整合期模拟"平台仓 vs 开发仓"，分仓时按同一边界迁移）
+# 详见 docs/repo-topology.md 与 repo-split.yaml
+
+# 平台面
+/bootstrap/            @platform-team
+/fleet/                @platform-team
+/layers/               @platform-team
+/components/infra/     @platform-team
+/components/platform/  @platform-team
+/components/data/      @platform-team
+/tenants/              @platform-team
+/roles/                @platform-team
+/profiles/             @platform-team
+/registry/             @platform-team
+/scripts/              @platform-team
+/storage/              @platform-team
+/kvm/                  @platform-team
+/kubernetes/           @platform-team
+/docs/                 @platform-team
+/repo-split.yaml       @platform-team
+
+# 开发面（未来迁至独立"开发仓"）
+/apps/                 @app-teams

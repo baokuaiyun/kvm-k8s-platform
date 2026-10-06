@@ -46,7 +46,7 @@ help:  ## 显示帮助
 init: kvm-init network-create image-download        ## 初始化 KVM 环境
 phase1: init vm-create k8s-install cni storage cert ## 阶段1: 基础集群
 phase2: security monitoring agents                  ## 阶段2: 安全监控
-phase3: platform gitops tenants operators images    ## 阶段3: 应用+GitOps
+phase3: operators platform-data platform gitops tenants images  ## 阶段3: Operator→共享数据→应用
 phase4: backup upgrade                              ## 阶段4: 升级维护
 verify: verify-cluster verify-monitoring verify-apps ## 全量验收
 
@@ -97,9 +97,13 @@ agents:  ## 可观测性 agent
 	helm upgrade --install blackbox prometheus-community/prometheus-blackbox-exporter -n monitoring
 
 ## ========== 阶段 3 ==========
-platform:  ## Harbor + GitLab
-	helm upgrade --install harbor harbor/harbor -n harbor --create-namespace
-	helm upgrade --install gitlab gitlab/gitlab -n gitlab --create-namespace --timeout 600s
+platform-data:  ## 共享 PG(CNPG 多库) + Redis
+	bash platform/platform-data/deploy.sh   # 需先 make operators
+
+platform:  ## Harbor + GitLab（外部依赖 platform-data）
+	# kubernetes/configs/{harbor,gitlab}-values.yaml，sed 注入 __PG_HOST__/__REDIS_HOST__
+	helm upgrade --install harbor $(HELM_HARBOR) -n harbor --create-namespace -f /tmp/harbor-values.yaml
+	helm upgrade --install gitlab $(HELM_GITLAB) -n gitlab --create-namespace --timeout 600s -f /tmp/gitlab-values.yaml
 
 gitops:  ## Flux CD
 	flux bootstrap github --owner=$(GIT_OWNER) --repository=$(GIT_REPO) --path=./clusters/kvm
@@ -109,9 +113,13 @@ tenants:  ## 三模式租户
 	kubectl apply -k infrastructure/crossplane/
 	vcluster create vc-tenant1 -n vc-tenant1
 
-operators:  ## 共享 Operator
-	helm upgrade --install redis-operator ot-helm/redis-operator -n redis-operator --create-namespace
-	helm upgrade --install cnpg cnpg/cloudnative-pg -n cnpg-system --create-namespace
+operators:  ## 共享 Operator（本域镜像 + 本地 chart）
+	# redis-operator / cloudnative-pg 版本见 registry/helm-charts-list.txt
+	# 镜像走 kubernetes/configs/{redis-operator,cloudnative-pg}-values.yaml
+	helm upgrade --install redis-operator $(HELM_REDIS_OP) -n redis-operator --create-namespace \
+		-f /tmp/redis-operator-values.yaml   # sed __IMAGE_REPOSITORY__ 后
+	helm upgrade --install cnpg $(HELM_CNPG) -n cnpg-system --create-namespace \
+		-f /tmp/cloudnative-pg-values.yaml
 
 images:  ## 镜像推送到 Harbor
 	bash registry/download-images.sh

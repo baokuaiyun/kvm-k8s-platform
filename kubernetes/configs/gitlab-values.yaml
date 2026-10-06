@@ -1,0 +1,61 @@
+# GitLab —— 外部依赖：共享 CNPG PostgreSQL + redis-operator Redis（platform-data）
+# chart: gitlab/gitlab 8.2.0（自带 MinIO 等；PostgreSQL/Redis 改为外部）
+# __占位__ 由 Makefile platform 目标用 sed 注入
+global:
+  hosts:
+    domain: __DOMAIN__
+    https: true
+  ingress:
+    configureCertmanager: false
+    tls:
+      secretName: wildcard-test-tls
+  # 外部 PostgreSQL（platform-pg-rw，库 gitlabhq_production，角色 gitlab）
+  psql:
+    host: __PG_HOST__
+    port: 5432
+    username: gitlab
+    database: gitlabhq_production
+    password:
+      secret: gitlab-pg-cred
+      key: password
+  # 外部 Redis（platform-redis）。共享实例：GitLab 用 DB 3，避开 Harbor 的 0/1/2/5
+  redis:
+    host: __REDIS_HOST__
+    port: 6379
+    database: 3
+    auth:
+      enabled: true
+      secret: gitlab-redis-cred
+      key: password
+
+# 关闭内置 PostgreSQL / Redis（改用上面的外部实例）
+postgresql:
+  install: false
+redis:
+  install: false
+
+certmanager:
+  install: false
+nginx-ingress:
+  enabled: false
+gitlab:
+  webservice:
+    minReplicas: 1
+  # Gitaly：Git 仓库数据（最重的不可再生资产），走规范 SC
+  gitaly:
+    persistence:
+      size: __GITALY_SIZE__
+      storageClass: __STORAGE_CLASS__
+  # 备份工具配置：备份产物写入对象存储（对象存储配置见 overlay）
+  toolbox:
+    backups:
+      cron:
+        enabled: true
+        schedule: "0 1 * * *"
+registry:
+  enabled: false
+# drill 用集群内独立 MinIO 承载 LFS/uploads/artifacts
+minio:
+  persistence:
+    size: __GITLAB_OBJECT_SIZE__
+    storageClass: __STORAGE_CLASS__

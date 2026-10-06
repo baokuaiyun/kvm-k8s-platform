@@ -1,0 +1,99 @@
+# kube-prometheus-stack（drill）：镜像全部指本域 Harbor（scheme C），持久化到 app-storage
+# chart: prometheus-community/kube-prometheus-stack 65.5.1
+# registry 字段可含路径，故用 harbor.../baokuaiyun + 短名 repository
+fullnameOverride: monitoring
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: app-storage
+          resources: { requests: { storage: 10Gi } }
+    resources:
+      requests: { cpu: 100m, memory: 768Mi }
+      limits: { memory: 2Gi }
+    image:
+      registry: harbor.test.baokuaiyun.com/baokuaiyun
+      repository: prometheus-prometheus
+      tag: v2.55.0
+
+prometheusOperator:
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 256Mi }
+  image:
+    registry: harbor.test.baokuaiyun.com/baokuaiyun
+    repository: prometheus-operator-prometheus-operator
+    tag: v0.77.2
+  prometheusConfigReloader:
+    image:
+      registry: harbor.test.baokuaiyun.com/baokuaiyun
+      repository: prometheus-operator-prometheus-config-reloader
+      tag: v0.77.2
+  admissionWebhooks:
+    patch:
+      image:
+        registry: harbor.test.baokuaiyun.com/baokuaiyun
+        repository: ingress-nginx-kube-webhook-certgen
+        tag: v20221220-controller-v1.5.1-58-g787ea74b6
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    image:
+      registry: harbor.test.baokuaiyun.com/baokuaiyun
+      repository: prometheus-alertmanager
+      tag: v0.27.0
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: app-storage
+          resources: { requests: { storage: 2Gi } }
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { memory: 256Mi }
+
+prometheus-node-exporter:
+  image:
+    registry: harbor.test.baokuaiyun.com/baokuaiyun
+    repository: prometheus-node-exporter
+    tag: v1.8.2
+
+kube-state-metrics:
+  image:
+    registry: harbor.test.baokuaiyun.com/baokuaiyun
+    repository: kube-state-metrics-kube-state-metrics
+    tag: v2.13.0
+
+grafana:
+  enabled: true
+  image:
+    registry: harbor.test.baokuaiyun.com/baokuaiyun
+    repository: grafana-grafana
+    tag: 11.2.2-security-01
+  sidecar:
+    image:
+      registry: harbor.test.baokuaiyun.com/baokuaiyun
+      repository: kiwigrid-k8s-sidecar
+      tag: 1.28.0
+  testFramework:
+    image:
+      registry: harbor.test.baokuaiyun.com/baokuaiyun
+      repository: bats-bats
+      tag: v1.4.1
+  initChownData:
+    image:
+      registry: harbor.test.baokuaiyun.com/baokuaiyun
+      repository: busybox
+      tag: 1.31.1
+  persistence:
+    enabled: true
+    storageClassName: app-storage
+    size: 5Gi
+  ingress:
+    enabled: false
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { memory: 512Mi }

@@ -6,7 +6,7 @@ set -euo pipefail
 HARBOR_FQDN="${HARBOR_FQDN:-harbor.test.baokuaiyun.com}"
 HARBOR_USER="${HARBOR_USER:-admin}"
 HARBOR_PASS="${HARBOR_PASS:-admin123}"
-HARBOR_PROJECT="${HARBOR_PROJECT:-k8s-library}"
+HARBOR_PROJECT="${HARBOR_PROJECT:-baokuaiyun}"
 
 IMAGES_FILE="$(dirname "$0")/images-list.txt"
 HARBOR_PREFIX="${HARBOR_FQDN}/${HARBOR_PROJECT}"

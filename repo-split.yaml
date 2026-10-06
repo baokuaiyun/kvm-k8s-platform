@@ -1,0 +1,58 @@
+# 分仓骨架（机器可读）：当前整合，生产时据此拆分
+# glob -> 目标仓 -> owner -> 制品约定
+version: 1
+current: mono            # 当前：整合单仓
+trigger: "持续开发启动 / 多团队 / 权限隔离 / 发布节奏分化"
+
+repos:
+  platform:
+    description: 平台仓（本仓）：引导、fleet、layer、平台组件与平台应用、租户基线、金标模板
+    owner: platform-team
+    paths:
+      - bootstrap/**
+      - fleet/**
+      - layers/**
+      - components/infra/**
+      - components/platform/**
+      - components/data/**
+      - tenants/**
+      - roles/**
+      - profiles/**
+      - docs/**
+      - registry/**
+      - scripts/**
+      - storage/**
+      - kvm/**
+      - kubernetes/**
+    artifacts:
+      naming: "oci://harbor/baokuaiyun/<component>:<tag>"   # scheme C
+      cosign: "platform-team"                               # 独立签名主体
+    fleet: true            # fleet/clusters 留在平台仓
+
+  apps:
+    description: 开发仓：应用清单/Helm/overlays、应用侧 CI 定义（持续开发）
+    owner: app-teams
+    paths:
+      - apps/**
+    artifacts:
+      naming: "oci://harbor/baokuaiyun/<app>:<tag>"
+      cosign: "app-teams"
+    fleet: false
+
+  tenant:                  # 可选
+    description: 租户仓：强隔离客户专属配置
+    owner: delivery
+    paths:
+      - tenants/private/**
+    artifacts:
+      naming: "oci://harbor/baokuaiyun/<tenant>-<app>:<tag>"
+      cosign: "delivery"
+    fleet: false
+
+# 跨仓契约（详见 docs/repo-topology.md）
+contract:
+  resource_set_inputs: [tenant, tag, environment, layer]
+  tenant_baseline: "平台提供 namespace/quota/RBAC/NetworkPolicy；开发仓引用参数"
+  env_overlays: [drill, prod, enterprise]
+  tags: { drill: latest, prod: latest-stable, pinned: "vX.Y.Z" }
+  component_type: [A, B]   # 渲染按集群类型过滤

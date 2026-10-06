@@ -1,0 +1,20 @@
+name: observability
+plane: infra
+fleet: [all-in-one, mgmt, biz]
+env: [drill, prod, enterprise]
+chart: kube-prometheus-stack-65.5.1.tgz
+images:
+  - quay.io/prometheus/prometheus:v2.55.0                              harbor.test.baokuaiyun.com/baokuaiyun/prometheus-prometheus:v2.55.0
+  - quay.io/prometheus-operator/prometheus-operator:v0.77.2            harbor.test.baokuaiyun.com/baokuaiyun/prometheus-operator-prometheus-operator:v0.77.2
+  - quay.io/prometheus-operator/prometheus-config-reloader:v0.77.2     harbor.test.baokuaiyun.com/baokuaiyun/prometheus-operator-prometheus-config-reloader:v0.77.2
+  - quay.io/prometheus/alertmanager:v0.27.0                            harbor.test.baokuaiyun.com/baokuaiyun/prometheus-alertmanager:v0.27.0
+  - quay.io/prometheus/node-exporter:v1.8.2                            harbor.test.baokuaiyun.com/baokuaiyun/prometheus-node-exporter:v1.8.2
+  - registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0      harbor.test.baokuaiyun.com/baokuaiyun/kube-state-metrics-kube-state-metrics:v2.13.0
+  - docker.io/grafana/grafana:11.2.2-security-01                       harbor.test.baokuaiyun.com/baokuaiyun/grafana-grafana:11.2.2-security-01
+  - quay.io/kiwigrid/k8s-sidecar:1.28.0                                harbor.test.baokuaiyun.com/baokuaiyun/kiwigrid-k8s-sidecar:1.28.0
+  - docker.io/bats/bats:v1.4.1                                         harbor.test.baokuaiyun.com/baokuaiyun/bats-bats:v1.4.1
+  - registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20221220-controller-v1.5.1-58-g787ea74b6  harbor.test.baokuaiyun.com/baokuaiyun/ingress-nginx-kube-webhook-certgen:v20221220-controller-v1.5.1-58-g787ea74b6
+  - docker.io/grafana/loki:3.3.0                                       harbor.test.baokuaiyun.com/baokuaiyun/grafana-loki:3.3.0
+  - docker.io/grafana/promtail:3.0.0                                   harbor.test.baokuaiyun.com/baokuaiyun/grafana-promtail:3.0.0
+  - quay.io/prometheus/blackbox-exporter:v0.28.0                       harbor.test.baokuaiyun.com/baokuaiyun/prometheus-blackbox-exporter:v0.28.0
+type: [A, B]

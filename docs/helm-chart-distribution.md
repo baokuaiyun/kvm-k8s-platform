@@ -47,7 +47,9 @@ make charts-push-git  # 把本地 HELM_CHARTS_DIR 的 tgz 推回 Codeup Git
 helm-charts/
 ├── cilium/
 ├── longhorn/
-└── cert-manager/
+├── cert-manager/
+├── redis-operator/     # 阶段 3 make operators
+└── cloudnative-pg/     # 阶段 3 make operators
 ```
 
 ## 三、方案 B：本地 vendor（离线）

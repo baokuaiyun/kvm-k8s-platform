@@ -1,0 +1,13 @@
+# GitLab Operator 3.4.1 —— 镜像走本域 Harbor
+image:
+  registry: harbor.test.baokuaiyun.com
+  repository: baokuaiyun
+  name: gitlab-operator
+  tag: "3.4.1"
+  pullPolicy: IfNotPresent
+# 集群已装 cert-manager，勿重复安装
+cert-manager:
+  install: false
+# 不使用 operator 自带 nginx-ingress（平台用 kgateway / Gateway API）
+nginx-ingress:
+  create: false

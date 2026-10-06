@@ -1,0 +1,47 @@
+# Kyverno（策略即代码）：镜像全部走 Harbor（scheme C 短名）
+admissionController:
+  caCertificates:
+    data: |
+      -----BEGIN CERTIFICATE-----
+      MIIC5TCCAc2gAwIBAgIRAMd08rBL2M/fcyM4OkWafKIwDQYJKoZIhvcNAQELBQAw
+      ADAeFw0yNjEwMDUxNTIxMDhaFw0yNzAxMDMxNTIxMDhaMAAwggEiMA0GCSqGSIb3
+      DQEBAQUAA4IBDwAwggEKAoIBAQCqEhvH1LAh9SrIkqYIkFjdE3AgXikp4DKkp26i
+      W7Ex8Ct3Ri2+w7ZP4IounlU+HZ9de4g+4o/AZpbujxkc0I5TPH7LR3RH6pNpg0co
+      seEwn8SGHInTzm7F7HoFRWVB9bKn+07S4J5MwttF41haBUXFATdOetCGHVLzQz2Z
+      wq+754bi13bidebsZ2+8792OPZO/18srS30h4FjLtR2iNYk9vE5fRYjznfrAsOE8
+      esknN2z54dcWMPGUr0hhFi/GxPg7/rWb+geGjM0CxodKUWhAqBD/hj8Dl19GLwAu
+      mHJaAs/7zh5R1kth4ce/dfInO9E86DWMP/XN6I8UDgmIU0VHAgMBAAGjWjBYMA4G
+      A1UdDwEB/wQEAwIFoDAMBgNVHRMBAf8EAjAAMDgGA1UdEQEB/wQuMCyCFSoudGVz
+      dC5iYW9rdWFpeXVuLmNvbYITdGVzdC5iYW9rdWFpeXVuLmNvbTANBgkqhkiG9w0B
+      AQsFAAOCAQEAUeWe2KVDcLwK70NLIhUk2yMeH52dv8sM4otHnD9XFhLqq/CvuPpZ
+      CWIo59qifQ/jLoM00dVhfo59hHL2bbqQS2dorduuZLAxZRFqyMZVCVXvJgXGKORx
+      OURj8PKHyJrlmiT0zNiPLh5Eg1thuP0qJYIs3qi0sHkVYoPRF5cUlmHvyXtpFcuc
+      ng2ph8mZOYg7Gves94RWTIMfQd3xtI+mwXwFacNI3h99T0VCW6UVIC5+LwJKGHRZ
+      BcGPQkFbcEiqOYh1FXKXMVuOzywRSqiESxzZE/iX9YcvCKxJrq6LKxB4x/CuSrIt
+      EPRXQwz+Qz2v7eZ4Vb4AODRdawWe15U80A==
+      -----END CERTIFICATE-----
+  container:
+    image:
+      registry: harbor.test.baokuaiyun.com/baokuaiyun
+      repository: kyverno-kyverno
+      tag: v1.13.2
+  initContainer:
+    image:
+      registry: harbor.test.baokuaiyun.com/baokuaiyun
+      repository: kyverno-kyvernopre
+      tag: v1.13.2
+backgroundController:
+  image:
+    registry: harbor.test.baokuaiyun.com/baokuaiyun
+    repository: kyverno-background-controller
+    tag: v1.13.2
+cleanupController:
+  image:
+    registry: harbor.test.baokuaiyun.com/baokuaiyun
+    repository: kyverno-cleanup-controller
+    tag: v1.13.2
+reportsController:
+  image:
+    registry: harbor.test.baokuaiyun.com/baokuaiyun
+    repository: kyverno-reports-controller
+    tag: v1.13.2

@@ -39,6 +39,10 @@ make verify        # 全量验收
 - `docs/alicloud-deployment.md` — 阿里云生产部署（多 ECS + CCM/SLB）
 - `docs/baokuaiyun-domain-migration.md` — 域名/证书/镜像迁移
 - `docs/tenant-isolation-architecture.md` — 三模式多租户
+- `docs/storage-plan.md` — 存储规划（StorageClass/PV/云盘）
+- `docs/application-data.md` — 应用数据说明与备份规划
+- `docs/data-classification.md` — 数据分级与 RPO/RTO
+- `docs/secret-management.md` — 凭据管理
 - `docs/makefile-design.md` — Makefile 设计
 - `docs/image-management.md` — 镜像管理
 

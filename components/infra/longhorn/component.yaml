@@ -1,0 +1,19 @@
+name: longhorn
+plane: infra
+fleet: [all-in-one, mgmt, biz, data]
+env: [drill, prod, enterprise]
+chart: longhorn-1.7.0.tgz
+images:
+  - docker.io/longhornio/longhorn-manager:v1.7.0            harbor.test.baokuaiyun.com/baokuaiyun/longhornio-longhorn-manager:v1.7.0
+  - docker.io/longhornio/longhorn-engine:v1.7.0             harbor.test.baokuaiyun.com/baokuaiyun/longhornio-longhorn-engine:v1.7.0
+  - docker.io/longhornio/longhorn-ui:v1.7.0                 harbor.test.baokuaiyun.com/baokuaiyun/longhornio-longhorn-ui:v1.7.0
+  - docker.io/longhornio/longhorn-instance-manager:v1.7.0   harbor.test.baokuaiyun.com/baokuaiyun/longhornio-longhorn-instance-manager:v1.7.0
+  - docker.io/longhornio/longhorn-share-manager:v1.7.0      harbor.test.baokuaiyun.com/baokuaiyun/longhornio-longhorn-share-manager:v1.7.0
+  - docker.io/longhornio/backing-image-manager:v1.7.0       harbor.test.baokuaiyun.com/baokuaiyun/longhornio-backing-image-manager:v1.7.0
+  - docker.io/longhornio/csi-attacher:v4.6.1                harbor.test.baokuaiyun.com/baokuaiyun/longhornio-csi-attacher:v4.6.1
+  - docker.io/longhornio/csi-provisioner:v4.0.1             harbor.test.baokuaiyun.com/baokuaiyun/longhornio-csi-provisioner:v4.0.1
+  - docker.io/longhornio/csi-resizer:v1.11.1                harbor.test.baokuaiyun.com/baokuaiyun/longhornio-csi-resizer:v1.11.1
+  - docker.io/longhornio/csi-snapshotter:v7.0.2             harbor.test.baokuaiyun.com/baokuaiyun/longhornio-csi-snapshotter:v7.0.2
+  - docker.io/longhornio/csi-node-driver-registrar:v2.11.1  harbor.test.baokuaiyun.com/baokuaiyun/longhornio-csi-node-driver-registrar:v2.11.1
+  - docker.io/longhornio/livenessprobe:v2.13.1              harbor.test.baokuaiyun.com/baokuaiyun/longhornio-livenessprobe:v2.13.1
+type: [A, B]

@@ -1,0 +1,9 @@
+# 集群模式 biz（业务+租户）：消费外部/本 Harbor，不自带 Harbor
+mode: biz
+components:
+  - cilium
+  - longhorn
+  - cert-manager
+  - kgateway
+  - flux
+  - observability

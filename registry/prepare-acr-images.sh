@@ -9,7 +9,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-LIST="${LIST:-${SCRIPT_DIR}/acr-images-list.txt}"
+LIST="${LIST:-${SCRIPT_DIR}/images}"
+if [ -d "$LIST" ]; then _t="$(mktemp)"; cat "$LIST"/tier*.txt > "$_t"; LIST="$_t"; trap 'rm -f "$_t"' EXIT; fi
 
 : "${IMAGE_REPOSITORY:?IMAGE_REPOSITORY 未设置（见 variables.mk/acr.env）}"
 ACR_AUTH_MODE="${ACR_AUTH_MODE:-password}"
@@ -39,6 +40,17 @@ mirror_src() {
     docker.io/*)       rest="${img#docker.io/}";       echo "${MIRROR_DOCKER}/${rest}" ;;
     quay.io/*)         rest="${img#quay.io/}";         echo "${MIRROR_QUAY}/${rest}" ;;
     *)                 echo "$img" ;;
+  esac
+}
+# scheme C：目标本域仓库名（核心 basename / kube-vip 单名 / 其余去域拼 -）
+scheme_c() {
+  local ref="$1" path="$1" first
+  first="${path%%/*}"
+  if [ "$first" != "$path" ] && [[ "$first" == *.* ]]; then path="${path#*/}"; fi
+  case "$ref" in
+    registry.k8s.io/*) echo "${ref##*/}" ;;
+    ghcr.io/kube-vip/kube-vip*) echo kube-vip ;;
+    *) echo "$path" | tr '/' '-' ;;
   esac
 }
 IMAGE_CACHE_DIR="${IMAGE_CACHE_DIR:-/data/kvm/images/registry}"
@@ -77,8 +89,9 @@ while read -r src dst tier acr_src; do
   tier_match "$tier" || continue
 
   tag="${src##*:}"
-  target="${IMAGE_REPOSITORY}/${dst}:${tag}"
-  acr_repo="${acr_src:-${ACR_NAMESPACE}/${dst}}"
+  repo="$(scheme_c "${src%%:*}")"
+  target="${IMAGE_REPOSITORY}/${repo}:${tag}"
+  acr_repo="${acr_src:-${ACR_NAMESPACE}/${repo}}"
   acr_ref="${ACR_REGISTRY}/${acr_repo}:${tag}"
   safe=$(echo "${target}" | tr '/:' '__')
   tar="${IMAGE_CACHE_DIR}/${safe}.tar"

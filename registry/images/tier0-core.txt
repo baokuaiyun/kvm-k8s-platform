@@ -1,0 +1,18 @@
+# Kubernetes 核心 + 入口/CNI（不齐集群起不来）
+# 格式: <源镜像>  <旧本域仓库后缀>  <Tier>  [<ACR后缀>]
+
+registry.k8s.io/kube-apiserver:v1.31.0              kube-apiserver              Tier0
+registry.k8s.io/kube-controller-manager:v1.31.0     kube-controller-manager     Tier0
+registry.k8s.io/kube-scheduler:v1.31.0              kube-scheduler              Tier0
+registry.k8s.io/kube-proxy:v1.31.0                  kube-proxy                  Tier0
+registry.k8s.io/coredns/coredns:v1.11.1             coredns                     Tier0
+registry.k8s.io/etcd:3.5.15-0                       etcd                        Tier0
+registry.k8s.io/pause:3.10                          pause                       Tier0
+ghcr.io/kube-vip/kube-vip:v0.8.7                    kube-vip                    Tier0
+quay.io/cilium/cilium:v1.16.0                       quay.cilium.cilium          Tier0
+quay.io/cilium/cilium-envoy:v1.29.7-39a2a56bbd5b3a591f69dbca51d3e30ef97e0e51 quay.cilium.cilium-envoy Tier0
+quay.io/cilium/operator-generic:v1.16.0             quay.cilium.operator-generic Tier0
+quay.io/cilium/hubble-relay:v1.16.0                 quay.cilium.hubble-relay    Tier0
+quay.io/cilium/hubble-ui:v0.13.1                    quay.cilium.hubble-ui       Tier0
+quay.io/cilium/hubble-ui-backend:v0.13.1            quay.cilium.hubble-ui-backend Tier0
+quay.io/cilium/certgen:v0.2.0                       quay.cilium.certgen         Tier0

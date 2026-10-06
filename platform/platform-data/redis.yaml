@@ -1,0 +1,69 @@
+# 共享 Redis —— 普通 StatefulSet（因 redis-operator v0.17.0 对 RedisReplication 有 panic bug）
+# 密码来自 Secret platform-redis-cred（deploy.sh 创建）
+apiVersion: v1
+kind: Service
+metadata:
+  name: platform-redis
+  namespace: __PLATFORM_DATA_NS__
+spec:
+  selector:
+    app: platform-redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: platform-redis
+  namespace: __PLATFORM_DATA_NS__
+spec:
+  serviceName: platform-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: platform-redis
+  template:
+    metadata:
+      labels:
+        app: platform-redis
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: redis
+          image: __IMAGE_REPOSITORY__/opstree-redis:v7.0.15
+          imagePullPolicy: IfNotPresent
+          command: ["redis-server"]
+          args:
+            - "--requirepass"
+            - "$(REDIS_PASSWORD)"
+            - "--maxmemory-policy"
+            - "noeviction"
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: platform-redis-cred
+                  key: password
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "redis-cli -a \"$REDIS_PASSWORD\" ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: __STORAGE_CLASS__
+        resources:
+          requests:
+            storage: __REDIS_STORAGE_SIZE__

@@ -28,9 +28,9 @@
   <dnsmasq:options>
     <dnsmasq:option value='host-record=k8s-api.test.baokuaiyun.com,192.168.124.30'/>
     <dnsmasq:option value='host-record=casdoor.test.baokuaiyun.com,192.168.124.30'/>
-    <!-- <dnsmasq:option value='host-record=harbor.test.baokuaiyun.com,192.168.124.30'/> -->
-    <!-- <dnsmasq:option value='host-record=gitlab.test.baokuaiyun.com,192.168.124.30'/> -->
-    <!-- <dnsmasq:option value='host-record=grafana.test.baokuaiyun.com,192.168.124.30'/> -->
+    <dnsmasq:option value='host-record=harbor.test.baokuaiyun.com,192.168.124.30'/>
+    <dnsmasq:option value='host-record=gitlab.test.baokuaiyun.com,192.168.124.30'/>
+    <dnsmasq:option value='host-record=grafana.test.baokuaiyun.com,192.168.124.30'/>
     <dnsmasq:option value='host-record=argocd.test.baokuaiyun.com,192.168.124.30'/>
   </dnsmasq:options>
 </network>

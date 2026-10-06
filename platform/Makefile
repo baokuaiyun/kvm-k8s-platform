@@ -11,7 +11,8 @@ harbor: ## 安装 Harbor
 		--set externalURL=https://$(HARBOR_HOST) \
 		--set harborAdminPassword=$(HARBOR_PASS) \
 		--set persistence.enabled=true \
-		--set persistence.persistentVolumeClaim.registry.storageClass=longhorn \
+		--set persistence.persistentVolumeClaim.registry.storageClass=$(STORAGE_CLASS) \
+		--set persistence.persistentVolumeClaim.registry.size=$(HARBOR_REGISTRY_SIZE) \
 		--set metrics.enabled=true
 
 gitlab: ## 安装 GitLab

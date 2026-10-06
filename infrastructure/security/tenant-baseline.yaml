@@ -47,6 +47,7 @@ spec:
     limits.cpu: "8"
     limits.memory: "16Gi"
     persistentvolumeclaims: "5"
+    requests.storage: "50Gi"     # 防止租户无限申请 PV 撑爆存储池
     services.loadbalancers: "1"
 ---
 # 默认资源限制

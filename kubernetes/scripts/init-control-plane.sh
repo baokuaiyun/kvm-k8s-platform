@@ -16,9 +16,17 @@ K8S_IMAGE_REPOSITORY="${K8S_IMAGE_REPOSITORY:-${IMAGE_REPOSITORY:-}}"
 echo "[+] 初始化控制面: ${CP1_IP} (endpoint=${ENDPOINT})"
 echo "[+] image-repository: ${K8S_IMAGE_REPOSITORY:-<默认 registry.k8s.io>}"
 
+# 引导期先把 VIP 绑到本节点网卡，避免 kube-vip 读 admin.conf(server=VIP) 的循环依赖
+CP_VIP="${CP_VIP:-}"
+if [ -n "$CP_VIP" ]; then
+  IFACE="${VIP_IFACE:-enp1s0}"
+  ssh -o StrictHostKeyChecking=no root@"${CP1_IP}" \
+    "ip addr add ${CP_VIP}/32 dev ${IFACE} 2>/dev/null || true; ip -br addr show ${IFACE} | grep -q ${CP_VIP} && echo '[+] VIP ${CP_VIP} 已就绪'" || true
+fi
+
 ssh -o StrictHostKeyChecking=no root@"${CP1_IP}" \
   "ENDPOINT=${ENDPOINT} POD_CIDR=${POD_CIDR} SERVICE_CIDR=${SERVICE_CIDR} \
-   K8S_VERSION=${K8S_VERSION} K8S_IMAGE_REPOSITORY=${K8S_IMAGE_REPOSITORY} bash -s" <<'NODE'
+   K8S_VERSION=${K8S_VERSION} K8S_IMAGE_REPOSITORY=${K8S_IMAGE_REPOSITORY} CP_VIP=${CP_VIP:-} bash -s" <<'NODE'
 set -euo pipefail
 
 ARGS=(init
@@ -28,6 +36,9 @@ ARGS=(init
   --kubernetes-version="v${K8S_VERSION}"
   --cri-socket="unix:///run/containerd/containerd.sock"
   --upload-certs)
+
+# 把 VIP 加入 apiserver 证书 SAN（否则经 VIP 访问会 TLS 校验失败）
+[ -n "${CP_VIP:-}" ] && ARGS+=(--apiserver-cert-extra-sans="${CP_VIP}")
 
 if [ -n "${K8S_IMAGE_REPOSITORY:-}" ]; then
   ARGS+=(--image-repository="${K8S_IMAGE_REPOSITORY}")
@@ -43,10 +54,9 @@ echo "[+] 控制面初始化完成"
 echo "[+] init 日志: /root/kubeadm-init.log"
 NODE
 
-# 拉取 kubeconfig 到宿主机
-mkdir -p ~/.kube
-scp -o StrictHostKeyChecking=no root@"${CP1_IP}":/etc/kubernetes/admin.conf ~/.kube/config 2>/dev/null || \
-  scp -o StrictHostKeyChecking=no root@"${CP1_IP}":/root/.kube/config ~/.kube/config
+# 导出并【合并】kubeconfig（独立脚本，绝不覆盖用户已有 ~/.kube/config）
+bash "$(cd "$(dirname "$0")" && pwd)/export-kubeconfig.sh" "${CP1_IP}"
+CONTEXT="${K8S_CONTEXT:-kvm-test}"
 
 # 持久化 worker join 命令（24h 有效）
 WORKER_JOIN=$(ssh -o StrictHostKeyChecking=no root@"${CP1_IP}" 'kubeadm token create --print-join-command')
@@ -54,7 +64,8 @@ mkdir -p /root/k8s/.join
 echo "$WORKER_JOIN" > /root/k8s/.join/worker-join.sh
 chmod +x /root/k8s/.join/worker-join.sh
 
-echo "[+] kubeconfig 已保存到 ~/.kube/config"
+echo "[+] kubeconfig 已合并进 ~/.kube/config，context=${CONTEXT}（当前已切换）"
+echo "    独立文件: ~/.kube/${CONTEXT}.config"
 echo "[+] worker join 命令已保存到 .join/worker-join.sh"
 echo ""
 echo "[+] 后续步骤:"

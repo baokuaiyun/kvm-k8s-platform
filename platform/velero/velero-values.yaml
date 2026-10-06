@@ -1,0 +1,41 @@
+# Velero（drill）：镜像走 Harbor；S3 后端=MinIO；node-agent(kopia) 做 PV 备份
+image:
+  repository: harbor.test.baokuaiyun.com/baokuaiyun/velero-velero
+  tag: v1.18.2
+  pullPolicy: IfNotPresent
+
+credentials:
+  useSecret: true
+  existingSecret: cloud-credentials
+
+# 不启用云快照（无 CSI 快照）；用 node-agent 做文件级 PV 备份
+snapshotsEnabled: false
+deployNodeAgent: true
+
+# 避免额外的 kubectl init 镜像
+upgradeCRDs: false
+
+# AWS 对象存储插件（S3/MinIO），镜像走 Harbor
+initContainers:
+  - name: velero-plugin-for-aws
+    image: harbor.test.baokuaiyun.com/baokuaiyun/velero-velero-plugin-for-aws:v1.13.1
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: aws
+      bucket: velero
+      default: true
+      config:
+        region: us-east-1
+        s3ForcePathStyle: "true"
+        s3Url: http://minio.minio.svc.cluster.local:9000
+  volumeSnapshotLocation: []
+
+nodeAgent:
+  tolerations:
+    - operator: Exists

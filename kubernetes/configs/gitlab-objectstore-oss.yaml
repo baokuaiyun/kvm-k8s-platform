@@ -1,0 +1,19 @@
+# GitLab 对象存储 overlay（prod）：阿里云 OSS（S3 兼容），关闭内置 MinIO
+# credentials 由 platform/gitlab/objectstore-secret.sh 生成 Secret gitlab-object-storage
+global:
+  minio:
+    enabled: false
+  appConfig:
+    objectStorage:
+      enabled: true
+      connection:
+        secret: gitlab-object-storage
+        key: connection
+gitlab:
+  toolbox:
+    backups:
+      # GitLab 备份产物（tar）也写入 OSS
+      objectStorage:
+        config:
+          secret: gitlab-object-storage
+          key: connection

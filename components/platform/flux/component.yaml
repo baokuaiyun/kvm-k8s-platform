@@ -1,0 +1,17 @@
+name: flux
+plane: platform
+fleet: [all-in-one, mgmt, biz]
+env: [drill, prod, enterprise]
+chart: flux-operator-0.61.0.tgz
+# Flux Operator 控制器镜像（distribution override 后镜像引用为 <registry>/<name>，不含 fluxcd/ 前缀，故平铺）
+images:
+  - ghcr.io/controlplaneio-fluxcd/flux-operator:v0.61.0     harbor.test.baokuaiyun.com/baokuaiyun/fluxcd/flux-operator:v0.61.0
+  - ghcr.io/fluxcd/source-controller:v1.9.6                 harbor.test.baokuaiyun.com/baokuaiyun/source-controller:v1.9.6
+  - ghcr.io/fluxcd/kustomize-controller:v1.9.6              harbor.test.baokuaiyun.com/baokuaiyun/kustomize-controller:v1.9.6
+  - ghcr.io/fluxcd/helm-controller:v1.6.5                   harbor.test.baokuaiyun.com/baokuaiyun/helm-controller:v1.6.5
+  - ghcr.io/fluxcd/notification-controller:v1.9.4           harbor.test.baokuaiyun.com/baokuaiyun/notification-controller:v1.9.4
+  - ghcr.io/fluxcd/source-watcher:v2.2.4                    harbor.test.baokuaiyun.com/baokuaiyun/source-watcher:v2.2.4
+# OCI 制品（非镜像）：flux-operator-manifests（distribution.artifact）
+artifacts:
+  - ghcr.io/controlplaneio-fluxcd/flux-operator-manifests:v0.61.0  harbor.test.baokuaiyun.com/baokuaiyun/flux-operator-manifests:latest
+type: [A, B]

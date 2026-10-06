@@ -1,0 +1,5 @@
+# GitLab 对象存储 overlay（drill）：集群内独立 MinIO（多副本由 SC 保障）
+# 与 gitlab-values.yaml 叠加：helm -f gitlab-values.yaml -f 本文件
+global:
+  minio:
+    enabled: true

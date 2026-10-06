@@ -1,0 +1,10 @@
+# Promtail（drill）：镜像走 Harbor，DaemonSet 覆盖全部节点
+image:
+  registry: harbor.test.baokuaiyun.com/baokuaiyun
+  repository: grafana-promtail
+  tag: 3.0.0
+tolerations:
+  - operator: Exists
+config:
+  clients:
+    - url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push

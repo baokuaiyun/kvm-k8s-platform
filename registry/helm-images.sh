@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 从 Helm chart 提取镜像引用，生成可追加到 acr-images-list.txt 的行
+# 从 Helm chart 提取镜像引用，生成可追加到 registry/images/ 的行
 # 用法: helm-images.sh <release> <chart> [-f values.yaml ...]
 # 输出: "<src>  <dst>  Tier2"（本域 dst = 全路径 / 换 .）
 # 说明: 尽力而为（chart 模板差异大），生成后请人工核对再追加

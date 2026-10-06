@@ -1,0 +1,15 @@
+name: harbor
+plane: platform
+fleet: [all-in-one, mgmt]
+env: [drill, prod, enterprise]
+chart: harbor-1.15.0.tgz
+images:
+  - docker.io/goharbor/harbor-core:v2.11.0            harbor.test.baokuaiyun.com/baokuaiyun/goharbor-harbor-core:v2.11.0
+  - docker.io/goharbor/harbor-jobservice:v2.11.0      harbor.test.baokuaiyun.com/baokuaiyun/goharbor-harbor-jobservice:v2.11.0
+  - docker.io/goharbor/harbor-portal:v2.11.0          harbor.test.baokuaiyun.com/baokuaiyun/goharbor-harbor-portal:v2.11.0
+  - docker.io/goharbor/harbor-registryctl:v2.11.0     harbor.test.baokuaiyun.com/baokuaiyun/goharbor-harbor-registryctl:v2.11.0
+  - docker.io/goharbor/harbor-exporter:v2.11.0        harbor.test.baokuaiyun.com/baokuaiyun/goharbor-harbor-exporter:v2.11.0
+  - docker.io/goharbor/registry-photon:v2.11.0        harbor.test.baokuaiyun.com/baokuaiyun/goharbor-registry-photon:v2.11.0
+  - docker.io/goharbor/nginx-photon:v2.11.0           harbor.test.baokuaiyun.com/baokuaiyun/goharbor-nginx-photon:v2.11.0
+  - docker.io/goharbor/trivy-adapter-photon:v2.11.0   harbor.test.baokuaiyun.com/baokuaiyun/goharbor-trivy-adapter-photon:v2.11.0
+type: [A]

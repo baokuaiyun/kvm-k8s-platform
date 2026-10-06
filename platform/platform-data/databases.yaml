@@ -1,0 +1,37 @@
+# 独立数据库（共享 platform-pg 实例）—— 需 CNPG >= 1.25 的 Database CRD
+# owner 角色由 Cluster.spec.managed.roles 声明
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: registry
+  namespace: __PLATFORM_DATA_NS__
+spec:
+  cluster:
+    name: platform-pg
+  name: registry
+  owner: harbor
+  databaseReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: gitlabhq-production
+  namespace: __PLATFORM_DATA_NS__
+spec:
+  cluster:
+    name: platform-pg
+  name: gitlabhq_production
+  owner: gitlab
+  databaseReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: casdoor
+  namespace: __PLATFORM_DATA_NS__
+spec:
+  cluster:
+    name: platform-pg
+  name: casdoor
+  owner: casdoor
+  databaseReclaimPolicy: retain

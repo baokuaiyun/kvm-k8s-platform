@@ -1,0 +1,94 @@
+# GitLab 对象存储（drill）：集群内单副本 MinIO + 初始化桶
+# 生产：改用阿里云 OSS（见 objectstore-secret.sh）
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minio
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-data
+  namespace: minio
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn-1
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: minio
+  labels: {app: minio}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: minio}}
+  template:
+    metadata: {labels: {app: minio}}
+    spec:
+      containers:
+        - name: minio
+          image: harbor.test.baokuaiyun.com/baokuaiyun/minio:latest
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom: {secretKeyRef: {name: minio-root-cred, key: root-user}}
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom: {secretKeyRef: {name: minio-root-cred, key: root-password}}
+          ports:
+            - {name: s3, containerPort: 9000}
+            - {name: console, containerPort: 9001}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+          readinessProbe:
+            httpGet: {path: /minio/health/ready, port: 9000}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: minio-data}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: minio
+spec:
+  selector: {app: minio}
+  ports:
+    - {name: s3, port: 9000, targetPort: 9000}
+    - {name: console, port: 9001, targetPort: 9001}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-bucket-init
+  namespace: minio
+spec:
+  backoffLimit: 30
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: harbor.test.baokuaiyun.com/baokuaiyun/mc:latest
+          env:
+            - name: ROOT_USER
+              valueFrom: {secretKeyRef: {name: minio-root-cred, key: root-user}}
+            - name: ROOT_PASS
+              valueFrom: {secretKeyRef: {name: minio-root-cred, key: root-password}}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              until mc alias set local http://minio.minio.svc.cluster.local:9000 "$ROOT_USER" "$ROOT_PASS"; do sleep 3; done
+              for b in gitlab-artifacts gitlab-lfs gitlab-uploads gitlab-packages \
+                       gitlab-mr-diffs gitlab-terraform-state gitlab-ci-secure-files \
+                       gitlab-dependency-proxy gitlab-registry gitlab-pages gitlab-backups; do
+                mc mb --ignore-existing "local/$b"
+              done
+              mc anonymous set download local/gitlab-pages || true
+              echo "[+] buckets ready"

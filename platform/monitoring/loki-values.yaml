@@ -1,0 +1,42 @@
+# Loki 单二进制（drill）：镜像走 Harbor，持久化 app-storage
+deploymentMode: SingleBinary
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  useTestSchema: true
+  image:
+    registry: harbor.test.baokuaiyun.com/baokuaiyun
+    repository: grafana-loki
+    tag: 3.3.0
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    storageClass: app-storage
+    size: 10Gi
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { memory: 768Mi }
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+sidecar:
+  image:
+    repository: harbor.test.baokuaiyun.com/baokuaiyun/kiwigrid-k8s-sidecar
+    tag: 1.28.0
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+gateway:
+  enabled: false
+test:
+  enabled: false
+lokiCanary:
+  enabled: false

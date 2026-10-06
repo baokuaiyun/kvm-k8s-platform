@@ -64,7 +64,7 @@ vim acr.env                  # 填真实 ACR_USER / ACR_PASS
 | **Tier1** | Longhorn + cert-manager | 阶段 1 的 storage/cert 验收 |
 | **Tier2** | 监控 / 可观测 / Operator / 工具 | 阶段 2/3，按需 |
 
-清单文件：`registry/acr-images-list.txt`（格式 `<源> <本域仓库后缀> <Tier> [<ACR源后缀>]`）。
+清单文件：`registry/images/`（格式 `<源> <本域仓库后缀> <Tier> [<ACR源后缀>]`）。
 
 ## 五、执行流程（Phase 0，必须在 init 前完成）
 
@@ -103,7 +103,7 @@ make k8s-join
 
 chart 的镜像写在模板里，需**用 values 覆盖成本域名**，再走同一套「下载→重命名→预载」：
 
-1. 提取 chart 镜像清单并追加到 `acr-images-list.txt`：
+1. 提取 chart 镜像清单并追加到 `registry/images/`：
    ```bash
    make helm-images RELEASE=cilium CHART=cilium/cilium
    ```
@@ -111,7 +111,14 @@ chart 的镜像写在模板里，需**用 values 覆盖成本域名**，再走�
    - `kubernetes/configs/cilium-values.yaml`
    - `kubernetes/configs/longhorn-values.yaml`
    - `kubernetes/configs/cert-manager-values.yaml`
-3. 重新 `make acr-prepare && make image-load && make image-preflight`。
+   - `kubernetes/configs/redis-operator-values.yaml`（阶段 3 · `make operators`）
+   - `kubernetes/configs/cloudnative-pg-values.yaml`（阶段 3 · `make operators`）
+   - `kubernetes/configs/harbor-values.yaml`（阶段 3 · `make platform`，外部 PG/Redis）
+   - `kubernetes/configs/gitlab-values.yaml`（阶段 3 · `make platform`，外部 PG/Redis）
+3. 重新 `make acr-prepare TIERS=Tier0,Tier1,Tier2 && make image-load && make image-preflight`。
+
+> Operator 的**运行时镜像**（Redis / PostgreSQL 实例）不在 chart 里，由 CR 的
+> `spec.*.image` / `spec.imageName` 指定，见 `registry/images/` Tier2。
 
 ## 七、阶段 3 闭环（影子 tag → 真名）
 
@@ -144,3 +151,15 @@ kubectl get pods -A | grep -iE 'ImagePull|ErrImage'
 - **Tag 一致性**：清单 tag 必须与 chart 默认 tag 一致，否则需同步改 values。
 - **版本升级**：chart/组件升级可能改镜像名，重跑 `make helm-images` 更新清单。
 - **安全**：`acr.env` 勿提交；节点 containerd 若配置 ACR 认证，注意文件权限。
+
+## 十、实测修复（1CP+1W 验证）
+
+- **ACR 凭据只应作用于 ACR 源**：曾把 `--src-creds` 加到所有源，导致 quay/1ms 镜像 copy 认证失败。现仅当源为 `${ACR_REGISTRY}` 时才带凭据。
+- **国内镜像重写**：`registry.k8s.io → 阿里云 google_containers`、`ghcr.io → ghcr.nju.edu.cn`、`docker.io → docker.1ms.run`、`quay.io → quay.m.daocloud.io`（可用 `MIRROR_*=...` 覆盖）。
+- **直连**：`BYPASS_PROXY=1`（默认）时脚本 `no_proxy=*` 直连，规避宿主代理导致的国外站点 TLS 失败。
+- **版本以 chart/kubeadm 为准**：
+  - `kubeadm config images list` 决定核心镜像 tag（1.31 的 `pause` 是 **3.10**）；
+  - Cilium `hubble-ui`/`hubble-ui-backend` 是 **v0.13.1**（非 v1.16.0），并需 `cilium-envoy`；
+  - operator 预载名 `quay.cilium.operator-generic`，但 values 里 repository 要用 `.../operator`（chart 会补 `-generic`）；
+  - Longhorn CSI 侧车 tag 以 chart `values` 为准（如 `csi-provisioner:v4.0.1`）。
+- **镜像分发目录**：节点 `/tmp` 常为 2G tmpfs，导入用 `/var/lib/k8s-images`。

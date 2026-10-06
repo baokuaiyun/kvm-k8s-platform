@@ -1,0 +1,18 @@
+# Redis Operator (Opstree / OT-CONTAINER-KIT) 配置
+# 镜像统一走本域仓库（__IMAGE_REPOSITORY__ 由 Makefile 用 sed 注入）
+# chart: ot-helm/redis-operator 0.16.4 (appVersion 0.17.0)
+redisOperator:
+  imageName: __IMAGE_REPOSITORY__/ghcr.io.ot-container-kit.redis-operator.redis-operator
+  imageTag: v0.17.0
+  imagePullPolicy: IfNotPresent
+
+# 需要 webhook TLS 时启用（集群已装 cert-manager，可设为 true）
+certmanager:
+  enabled: false
+
+# 运行时 Redis 镜像（redis / sentinel / exporter）由 RedisCluster、
+# RedisReplication、RedisSentinel 等 CR 的 spec.*.image 指定，
+# 生产请指向本域镜像（见 registry/acr-images-list.txt）：
+#   quay.opstree.redis:v7.0.15
+#   quay.opstree.redis-sentinel:v7.0.15
+#   quay.opstree.redis-exporter:v1.44.0

@@ -1,0 +1,34 @@
+# Longhorn 生产化 overlay（drill 与 prod 共用；由 Makefile 注入 __占位__）
+# 与 kubernetes/configs/longhorn-values.yaml（镜像）叠加使用
+defaultSettings:
+  # 无 SC 参数时的兜底副本数；app-storage SC 用 numberOfReplicas 覆盖
+  defaultReplicaCount: "__LONGHORN_REPLICAS__"
+  # 异地备份目标（drill=NFS；prod=OSS s3://bucket@oss-<region>.aliyuncs.com/）
+  backupTarget: "__BACKUP_TARGET__"
+  backupTargetCredentialSecret: "__BACKUP_CRED_SECRET__"
+  # drill 仅 2 节点：允许 Longhorn 调度到控制面，才能达到 2 副本
+  allowSchedulingOnControlPlane: __LONGHORN_ALLOW_CONTROL_PLANE__
+  # 自动清理：避免宿主盘被快照/备份撑满（Longhorn 会按实际用量触发）
+  # 回收策略保持 Retain，由 StorageClass 决定，不在此处全局设置
+
+persistence:
+  # 关闭 chart 自带 longhorn SC 的默认标记，改由 app-storage 当默认
+  defaultClass: false
+  defaultClassReplicaCount: "__LONGHORN_REPLICAS__"
+
+# 定期快照任务（本地，快速回滚；异地靠 backupTarget + Velero/CNPG）
+recurringJobs:
+  - name: daily-snapshot
+    task: snapshot
+    cron: "0 1 * * *"
+    retain: 3
+    concurrency: 2
+    labels:
+      backup: daily
+  - name: daily-backup
+    task: backup
+    cron: "0 2 * * *"
+    retain: 7
+    concurrency: 1
+    labels:
+      backup: offsite

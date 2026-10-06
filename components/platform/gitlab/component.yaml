@@ -1,0 +1,21 @@
+name: gitlab
+plane: platform
+type: [A]
+fleet: [all-in-one, mgmt]
+env: [drill, prod, enterprise]
+# CNG CE 19.4.1 + Operator 3.4.1（chart 走 Gitee/厂商 chart，镜像走 Harbor）
+images:
+  - registry.gitlab.com/gitlab-org/build/cng/certificates:v19.4.1                      harbor.test.baokuaiyun.com/baokuaiyun/certificates:v19.4.1
+  - registry.gitlab.com/gitlab-org/build/cng/cfssl-self-sign:v19.4.1                   harbor.test.baokuaiyun.com/baokuaiyun/cfssl-self-sign:v19.4.1
+  - registry.gitlab.com/gitlab-org/build/cng/gitaly:v19.4.1                            harbor.test.baokuaiyun.com/baokuaiyun/gitaly:v19.4.1
+  - registry.gitlab.com/gitlab-org/build/cng/gitlab-base:v19.4.1                       harbor.test.baokuaiyun.com/baokuaiyun/gitlab-base:v19.4.1
+  - registry.gitlab.com/gitlab-org/build/cng/gitlab-container-registry:v4.40.2-gitlab  harbor.test.baokuaiyun.com/baokuaiyun/gitlab-container-registry:v4.40.2-gitlab
+  - registry.gitlab.com/gitlab-org/build/cng/gitlab-exporter:17.0.2                    harbor.test.baokuaiyun.com/baokuaiyun/gitlab-exporter:17.0.2
+  - registry.gitlab.com/gitlab-org/build/cng/gitlab-kas:v19.4.1                        harbor.test.baokuaiyun.com/baokuaiyun/gitlab-kas:v19.4.1
+  - registry.gitlab.com/gitlab-org/build/cng/gitlab-shell:v14.57.3                     harbor.test.baokuaiyun.com/baokuaiyun/gitlab-shell:v14.57.3
+  - registry.gitlab.com/gitlab-org/build/cng/gitlab-sidekiq-ce:v19.4.1                 harbor.test.baokuaiyun.com/baokuaiyun/gitlab-sidekiq-ce:v19.4.1
+  - registry.gitlab.com/gitlab-org/build/cng/gitlab-toolbox-ce:v19.4.1                 harbor.test.baokuaiyun.com/baokuaiyun/gitlab-toolbox-ce:v19.4.1
+  - registry.gitlab.com/gitlab-org/build/cng/gitlab-webservice-ce:v19.4.1              harbor.test.baokuaiyun.com/baokuaiyun/gitlab-webservice-ce:v19.4.1
+  - registry.gitlab.com/gitlab-org/build/cng/gitlab-workhorse-ce:v19.4.1               harbor.test.baokuaiyun.com/baokuaiyun/gitlab-workhorse-ce:v19.4.1
+  - registry.gitlab.com/gitlab-org/build/cng/kubectl:v19.4.1                           harbor.test.baokuaiyun.com/baokuaiyun/kubectl:v19.4.1
+  - registry.gitlab.com/gitlab-org/cloud-native/gitlab-operator:3.4.1                  harbor.test.baokuaiyun.com/baokuaiyun/gitlab-operator:3.4.1

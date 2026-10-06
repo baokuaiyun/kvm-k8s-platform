@@ -1,5 +1,6 @@
 # Cilium CNI 配置
 # 镜像统一走本域仓库（__IMAGE_REPOSITORY__ 由 Makefile 用 sed 注入）
+# 关键：关闭 useDigest，改用 tag，确保预载的本域镜像按 tag 命中
 kubeProxyReplacement: true
 # 指向控制面 VIP（kube-vip 持有），而非单台 CP IP，保证 API 高可用
 k8sServiceHost: 192.168.124.30
@@ -8,34 +9,46 @@ ipam:
   mode: kubernetes
 
 image:
-  repository: __IMAGE_REPOSITORY__/quay.cilium.cilium
+  repository: __IMAGE_REPOSITORY__/cilium-cilium
   tag: v1.16.0
   useDigest: false
+
+envoy:
+  image:
+    repository: __IMAGE_REPOSITORY__/cilium-cilium-envoy
+    tag: v1.29.7-39a2a56bbd5b3a591f69dbca51d3e30ef97e0e51
+    useDigest: false
 
 operator:
   replicas: 2
   image:
-    repository: __IMAGE_REPOSITORY__/quay.cilium.operator-generic
+    # 注意：chart 会自动追加 "-generic"，故这里用 operator（预载为 operator-generic）
+    repository: __IMAGE_REPOSITORY__/cilium-operator
     tag: v1.16.0
+    useDigest: false
 
 certgen:
   image:
-    repository: __IMAGE_REPOSITORY__/quay.cilium.certgen
+    repository: __IMAGE_REPOSITORY__/cilium-certgen
     tag: v0.2.0
+    useDigest: false
 
 hubble:
   relay:
     enabled: true
     image:
-      repository: __IMAGE_REPOSITORY__/quay.cilium.hubble-relay
+      repository: __IMAGE_REPOSITORY__/cilium-hubble-relay
       tag: v1.16.0
+      useDigest: false
   ui:
     enabled: true
     frontend:
       image:
-        repository: __IMAGE_REPOSITORY__/quay.cilium.hubble-ui
-        tag: v1.16.0
+        repository: __IMAGE_REPOSITORY__/cilium-hubble-ui
+        tag: v0.13.1
+        useDigest: false
     backend:
       image:
-        repository: __IMAGE_REPOSITORY__/quay.cilium.hubble-ui-backend
-        tag: v1.16.0
+        repository: __IMAGE_REPOSITORY__/cilium-hubble-ui-backend
+        tag: v0.13.1
+        useDigest: false

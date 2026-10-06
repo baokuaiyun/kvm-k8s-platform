@@ -9,7 +9,7 @@ data:
     httpport = 8000
     runmode = prod
     driverName = postgres
-    dataSourceName = "user=__CASDOOR_DB_USER__ password=__CASDOOR_DB_PASS__ host=casdoor-postgres port=5432 sslmode=disable dbname=__CASDOOR_DB_NAME__"
+    dataSourceName = "user=__CASDOOR_DB_USER__ password=__CASDOOR_DB_PASS__ host=__PG_HOST__ port=5432 sslmode=disable dbname=__CASDOOR_DB_NAME__"
     sessionOn = true
     origin = https://__CASDOOR_HOST__
     staticBaseUrl = "https://__CASDOOR_HOST__"
@@ -33,7 +33,7 @@ spec:
     spec:
       containers:
         - name: casdoor
-          image: __IMAGE_REPOSITORY__/docker.io.casbin.casdoor:__CASDOOR_VERSION__
+          image: __IMAGE_REPOSITORY__/casbin-casdoor:__CASDOOR_VERSION__
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000

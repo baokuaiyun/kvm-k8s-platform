@@ -10,7 +10,10 @@ MEM_GI="${3:-4}"
 
 [ -z "$TENANT" ] && { echo "用法: bash create-tenant.sh <租户名> [cpu] [内存Gi]"; exit 1; }
 
-NS="team-${TENANT}"
+case "$TENANT" in
+  team-*) NS="$TENANT" ;;
+  *)      NS="team-${TENANT}" ;;
+esac
 BASELINE="$(dirname "$0")/../security/tenant-baseline.yaml"
 
 echo "[+] 创建租户 namespace: ${NS}"

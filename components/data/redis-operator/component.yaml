@@ -1,0 +1,11 @@
+name: redis-operator
+plane: data
+fleet: [all-in-one, mgmt, data]
+env: [drill, prod, enterprise]
+chart: redis-operator-0.16.4.tgz
+images:
+  - ghcr.io/ot-container-kit/redis-operator/redis-operator:v0.17.0  harbor.test.baokuaiyun.com/baokuaiyun/ot-container-kit-redis-operator-redis-operator:v0.17.0
+  - quay.io/opstree/redis:v7.0.15                                    harbor.test.baokuaiyun.com/baokuaiyun/opstree-redis:v7.0.15
+  - quay.io/opstree/redis-sentinel:v7.0.15                           harbor.test.baokuaiyun.com/baokuaiyun/opstree-redis-sentinel:v7.0.15
+  - quay.io/opstree/redis-exporter:v1.44.0                           harbor.test.baokuaiyun.com/baokuaiyun/opstree-redis-exporter:v1.44.0
+type: [A, B]

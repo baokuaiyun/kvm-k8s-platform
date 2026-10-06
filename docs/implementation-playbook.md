@@ -1,5 +1,8 @@
-# 本机 KVM 演练环境分阶段实施手册
+# 本机 KVM 演练环境分阶段实施手册（命令详解）
 
+> ⚠️ **总纲已迁移**：实施顺序与分层以 [`implementation-matrix.md`](implementation-matrix.md) 为准
+> （四平面 × 集群定位 × CDM 阶梯 × 规模）。本文保留为**命令与踩坑详解**，四阶段是其一个视图。
+>
 > 适用范围：**本机单机 KVM 演练环境**（Phase 1）
 > 四阶段递进：基础集群 → 安全监控 → 应用+GitOps → 升级维护
 > 每阶段有验收标准，通过后再进入下一阶段。
@@ -251,41 +254,59 @@ make k8s-common
 
 > 常见坑：VM 刚 SSH 通时 cloud-init 可能仍在跑，直接装会 `gpg: command not found`。脚本已内置等待。
 
-### 1.4.2 部署 kube-vip（init 之前，提供 VIP）
+> 编排顺序：`make phase1` = 1.4.0 镜像 → 1.4.1 装组件 → **1.4.2 init**（自动绑静态 VIP）→ **1.4.3 join** → **1.4.4 kube-vip 接管** → cni/storage/cert。
+> kube-vip 在 **init 之后**部署（见下），不是之前。
+
+### 1.4.2 初始化控制面（cp-1，自动绑静态 VIP）
+
+```bash
+make k8s-init
+# = kubernetes/scripts/init-control-plane.sh
+#   1) 先在 cp-1 上 ip addr add <VIP>/32（引导期静态持有，避免 kube-vip 读 admin.conf(server=VIP) 的循环依赖）
+#   2) kubeadm init：
+#      --control-plane-endpoint=k8s-api.test.baokuaiyun.com:6443 \
+#      --apiserver-cert-extra-sans=<VIP> \        # 关键：否则经 VIP 访问 TLS 校验失败
+#      --image-repository=harbor.test.baokuaiyun.com/baokuaiyun   # scheme C（baokuaiyun 单项目）
+#      --pod-network-cidr=10.244.0.0/16 --service-cidr=10.96.0.0/12 \
+#      --kubernetes-version=v1.31.0 \
+#      --cri-socket unix:///run/containerd/containerd.sock --upload-certs
+```
+
+- kubeconfig **合并**进宿主机 `~/.kube/config`（context 名由 `K8S_CONTEXT` 定义，默认 `kvm-test`），并自动切换到该 context；**不覆盖**你已有的其他集群配置
+- 独立文件 `~/.kube/<K8S_CONTEXT>.config`；随时可 `make kubeconfig` 重新导出/合并
+- worker join 命令存到 `.join/worker-join.sh`（24h 有效）
+
+> **误覆盖恢复**（若早期版本把 `~/.kube/config` 冲掉）：
+> ```bash
+> cp ~/.kube/config ~/.kube/config.bak.$(date +%s)          # 先备份现状
+> k3d kubeconfig get kagent     > ~/.kube/k3d-kagent.config
+> k3d kubeconfig get my-cluster > ~/.kube/k3d-my-cluster.config
+> KUBECONFIG=~/.kube/config:~/.kube/k3d-kagent.config:~/.kube/k3d-my-cluster.config:~/.kube/k3s.config \
+>   kubectl config view --flatten --raw > /tmp/kc && mv /tmp/kc ~/.kube/config
+> kubectl config use-context kvm-test
+> ```
+> 关键：`kubectl config view` 必须带 **`--raw`**，否则会脱敏丢证书。
+
+### 1.4.3 加入起步 Worker（worker-1）
+
+```bash
+make k8s-join
+kubectl get nodes            # cp-1 + worker-1（此时 NotReady，装 CNI 后 Ready）
+```
+
+### 1.4.4 部署 kube-vip（init 之后，接管 VIP）
 
 ```bash
 make kube-vip
 # = kubernetes/scripts/setup-kube-vip.sh
-#   生成 /etc/kubernetes/manifests/kube-vip.yaml 分发到 cp-1
-#   ARP/L2 模式，VIP=192.168.124.30，网卡取 variables.mk 的 VIP_IFACE（默认 enp1s0）
+#   若节点尚无 kubeconfig：报错提示先 init
+#   生成 /etc/kubernetes/kube-vip.conf（由 admin.conf 改写 server 为「本节点IP:6443」）
+#   生成 /etc/kubernetes/manifests/kube-vip.yaml（ARP/L2，VIP=<CP_VIP>，网卡 VIP_IFACE）
+#   kube-vip 用本节点 kubeconfig 选举成功后会接管 VIP
 ```
 
-> 网卡名不确定时：登录节点 `ip -br link` 确认，改 `variables.mk` 的 `VIP_IFACE`。
-
-### 1.4.3 初始化控制面（cp-1）
-
-```bash
-make k8s-init
-# = kubernetes/scripts/init-control-plane.sh，等价于：
-# kubeadm init \
-#   --control-plane-endpoint=k8s-api.test.baokuaiyun.com:6443 \
-#   --image-repository=harbor.test.baokuaiyun.com/k8s-library \
-#   --pod-network-cidr=10.244.0.0/16 \
-#   --service-cidr=10.96.0.0/12 \
-#   --kubernetes-version=v1.31.0 \
-#   --cri-socket unix:///run/containerd/containerd.sock \
-#   --upload-certs
-```
-
-- kubeconfig 自动拉到宿主机 `~/.kube/config`
-- worker join 命令存到 `.join/worker-join.sh`（24h 有效）
-
-### 1.4.4 加入起步 Worker（worker-1）
-
-```bash
-make k8s-join
-kubectl get nodes -w        # cp-1 + worker-1 均 Ready
-```
+> 为什么 init 后再部署：kube-vip 启动即需一份可用的 kubeconfig；若指向 VIP 则形成循环（VIP 未起 → API 不可达）。
+> 引导期先用静态 VIP 让 init 通过，之后 kube-vip 接管即可，扩容到 3CP 时同样适用。
 
 ### 1.4.5 扩容到 3CP+2W（HA）
 
@@ -302,38 +323,52 @@ kubectl get nodes           # 5 节点，control-plane 3 台
 > 注意：`certificate-key` 默认 2h 过期，`join-control-plane.sh` 每次重新
 > `kubeadm init phase upload-certs --upload-certs` 现取，无需缓存。
 
+### 1.4.6 实测踩坑与修复（1CP+1W 演练验证）
+
+| 现象 | 根因 | 修复 |
+|---|---|---|
+| `virsh net-define` 报已存在 | 网络非幂等 | `network-create` 先 `net-info` 判断 |
+| VM GRUB 反复重启、无内核日志 | Debian13 云镜像需 UEFI | `virt-install --boot uefi` |
+| `cloud-localds` 参数错、VM 建不出 | `-f/-m` 误用 | 位置参数：`cloud-localds seed.iso user-data meta-data` |
+| 多 CP 同名 | user-data 写死 hostname | `__HOSTNAME__` 注入唯一主机名 |
+| cloud-init 装包极慢 | `deb.debian.org` | cloud-init 覆盖 `debian.sources` 为阿里云镜像 |
+| `gpg: command not found` | cloud-init 未完成 | 先 `cloud-init status --wait` |
+| apt 装 k8s 报 v3 签名被拒 | k8s 上游 Release 用 v3，Debian13 sqv 拒 | 源用 `[trusted=yes]` |
+| kubeadm 报 `pause:3.10` 拉不到 | 清单 pause 写 3.9 | 以 `kubeadm config images list` 为准（3.10） |
+| Pod 沙箱报拉 `pause:3.8` | containerd `sandbox_image` 默认 3.8 | 设为 `${本域}/pause:3.10` |
+| Pod 卡 `FailedCreatePodSandBox: loopback/cilium-cni not found [/usr/lib/cni]` | containerd `bin_dir` 与插件目录不符 | containerd `bin_dir=/opt/cni/bin` |
+| 经 VIP 访问 API TLS 失败 | apiserver 证书 SAN 不含 VIP | init 加 `--apiserver-cert-extra-sans=<VIP>` |
+| kube-vip 崩溃/移走 VIP | 启动需 kubeconfig，指向 VIP 成环 | init 后部署，kubeconfig 用「本节点IP」 |
+| Cilium operator 拉 `operator-generic-generic` | chart 会自动追加 `-generic` | values 里 repository 用 `.../quay.cilium.operator` |
+| Longhorn 崩溃：`iscsiadm` 缺失 | 节点无 open-iscsi | 节点装 `open-iscsi` 并启用 `iscsid` |
+| `/tmp` 写入失败、scp 报 Failure | 云镜像 `/tmp` 是 2G tmpfs | 镜像导入用磁盘目录（`/var/lib/k8s-images`） |
+| 宿主代理导致国外 TLS 失败 | 代理问题 | 脚本 `BYPASS_PROXY=1` 直连 + 国内镜像源 |
+
 ## 1.5 安装 Cilium CNI
 
-```bash
-helm repo add cilium https://helm.cilium.io && helm repo update
-helm upgrade --install cilium cilium/cilium \
-  --namespace kube-system \
-  --set kubeProxyReplacement=true \
-  --set k8sServiceHost=192.168.124.30 \
-  --set k8sServicePort=6443 \
-  --set ipam.mode=kubernetes
+> 用 `make cni`（本地 chart + 本域镜像 values，见 `kubernetes/configs/cilium-values.yaml`）。
+> 关键：`k8sServiceHost=<VIP>`、`useDigest:false`、operator repository 用 `.../operator`（chart 会补 `-generic`）。
 
+```bash
+make cni
 kubectl wait -n kube-system --for=condition=Ready pod -l k8s-app=cilium --timeout=300s
 ```
 
 ## 1.6 安装 Longhorn 存储
 
-```bash
-helm repo add longhorn https://charts.longhorn.io && helm repo update
-helm upgrade --install longhorn longhorn/longhorn \
-  --namespace longhorn-system --create-namespace \
-  --set defaultSettings.defaultReplicaCount=1   # 起步 2 节点；扩容到 3 节点后改 $(LONGHORN_REPLICAS)
+> 前置：节点需 **open-iscsi**（`make k8s-common` 已装并启用 `iscsid`），否则 longhorn-manager 会因 `iscsiadm` 缺失崩溃。
+> 用 `make storage`（本地 chart + 本域镜像 values，副本数取 `LONGHORN_REPLICAS`）。
 
-kubectl wait -n longhorn-system --for=condition=Available deployment longhorn-ui --timeout=300s
-kubectl get sc   # 期望 longhorn 出现
+```bash
+make storage
+kubectl -n longhorn-system get pods
+kubectl get sc   # 期望 longhorn (default)
 ```
 
 ## 1.7 安装 cert-manager + Let's Encrypt
 
 ```bash
-helm repo add jetstack https://charts.jetstack.io && helm repo update
-helm upgrade --install cert-manager jetstack/cert-manager \
-  --namespace cert-manager --create-namespace --set installCRDs=true
+make cert   # 本地 chart + 本域镜像 values（cert-manager-values.yaml）
 
 # 阿里云 DNS 凭据（DNS-01 挑战用）
 kubectl -n cert-manager create secret generic alidns-secret \
@@ -549,42 +584,62 @@ kubectl get pods -n monitoring              # Prometheus/Grafana/Loki/OTel/Black
 
 # 阶段 3：应用部署 + GitOps
 
-## 3.1 Harbor
+> Harbor 与 GitLab 的 **PostgreSQL / Redis 不再各自内置**，统一消费共享的
+> `platform-data`（CNPG 多库 + redis-operator）——详见 [`platform-data.md`](platform-data.md)。
+
+## 3.0 共享数据层（先于 Harbor/GitLab）
 
 ```bash
-helm repo add harbor https://helm.goharbor.io && helm repo update
-helm upgrade --install harbor harbor/harbor \
-  --namespace harbor --create-namespace \
-  --set expose.type=clusterIP \
-  --set externalURL=https://harbor.test.baokuaiyun.com \
-  --set expose.tls.secretName=wildcard-test-tls \
-  --set harborAdminPassword=<强密码> \
-  --set persistence.enabled=true \
-  --set persistence.persistentVolumeClaim.registry.storageClass=longhorn \
-  --set metrics.enabled=true
+make operators        # 安装 cloudnative-pg(>=1.25) + redis-operator
+make platform-data    # 建 Cluster/platform-pg(多库) + RedisReplication + ScheduledBackup
+# 产物: platform-pg-rw.platform-data.svc:5432 / platform-redis.platform-data.svc:6379
 ```
 
-## 3.2 GitLab
+## 3.1 Harbor（外部 PG/Redis）
 
 ```bash
-helm repo add gitlab https://charts.gitlab.io && helm repo update
-cat > gitlab-values.yaml <<'EOF'
+# values: kubernetes/configs/harbor-values.yaml（database.type=external + redis.type=external）
+make platform
+# 等价于对 harbor/harbor 1.15.0 用 sed 注入 __PG_HOST__/__REDIS_HOST__ 后 helm install
+```
+
+关键 values：
+
+```yaml
+database:
+  type: external
+  external: {host: platform-pg-rw.platform-data.svc.cluster.local, port: "5432",
+             username: harbor, coreDatabase: registry, password: <PG_HARBOR_PASS>}
+redis:
+  type: external
+  external: {addr: platform-redis.platform-data.svc.cluster.local:6379, password: <REDIS_PASS>}
+```
+
+## 3.2 GitLab（route C：Operator 3.4.1 + CNG CE 19.4.1）
+
+> 现采用 **GitLab route C**（Operator + CNG chart 10.4.1 / v19.4.1），完整步骤见
+> [`gitlab-cng-operator.md`](gitlab-cng-operator.md)。旧 `make platform` / chart 8.2.0 已弃用。
+
+```bash
+bash registry/push-gitlab-to-harbor.sh          # CNG/Operator 镜像入 Harbor
+helm upgrade --install gitlab-operator ...      # 见 gitlab-cng-operator.md
+bash platform/gitlab/deploy.sh                  # 建密钥 + apply GitLab CR
+```
+
+关键 values（`platform/gitlab/gitlab-cr.yaml`，节选）：
+
+```yaml
 global:
-  hosts:
-    domain: test.baokuaiyun.com
-    https: true
-  ingress:
-    configureCertmanager: false
-    tls: {secretName: wildcard-test-tls}
-certmanager: {install: false}
-nginx-ingress: {enabled: false}
-gitlab: {webservice: {minReplicas: 1}}
-registry: {enabled: false}
-postgresql: {install: true, persistence: {size: 30Gi}}
-redis: {install: true, persistence: {size: 10Gi}}
-EOF
-helm upgrade --install gitlab gitlab/gitlab \
-  --namespace gitlab --create-namespace --timeout 600s -f gitlab-values.yaml
+  edition: ce
+  communityImages:                             # 组件镜像 -> Harbor scheme C 短名
+    webservice: {repository: harbor.test.baokuaiyun.com/baokuaiyun/gitlab-webservice-ce}
+  psql:  {host: platform-pg-rw.platform-data.svc.cluster.local, port: 5432,
+          username: gitlab, database: gitlabhq_production,
+          password: {secret: gitlab-pg-cred, key: password}}
+  redis: {host: platform-redis.platform-data.svc.cluster.local, port: 6379, database: 3,
+          auth: {enabled: true, secret: gitlab-redis-cred, key: password}}
+postgresql: {install: false}
+redis: {install: false}
 ```
 
 ## 3.3 Flux CD（GitOps）
@@ -658,81 +713,83 @@ vcluster connect vc-tenant1 -n vc-tenant1
 # 租户 kubeconfig 独立，可装自己的 CRD/Operator
 ```
 
-## 3.5 共享 Operator
+## 3.5 共享 Operator（redis-operator + CloudNativePG）
+
+镜像与 chart 均走本域体系（与 Cilium/Longhorn 一致）：
 
 ```bash
-# redis-operator
-helm repo add ot-helm https://ot-container-kit.github.io/helm-charts && helm repo update
-helm upgrade --install redis-operator ot-helm/redis-operator \
-  --namespace redis-operator --create-namespace
+# 1. 预置 Tier2 镜像（含 operator 本体 + Redis/Postgres 运行时）
+make acr-prepare TIERS=Tier0,Tier1,Tier2
+make image-load
 
-# CloudNative PG
-helm repo add cnpg https://cloudnative-pg.github.io/charts && helm repo update
-helm upgrade --install cnpg cnpg/cloudnative-pg \
-  --namespace cnpg-system --create-namespace
+# 2. 预置 chart（Codeup Git 或上游，见 helm-chart-distribution.md）
+make charts-pull
+
+# 3. 安装（Makefile 用 sed 注入 __IMAGE_REPOSITORY__，并等待 rollout）
+make operators
+# = redis-operator chart 0.16.4  @ ns redis-operator
+#   cnpg/cloudnative-pg chart 0.23.2 @ ns cnpg-system
 ```
 
-## 3.6 镜像迁移（阿里云 CR → Harbor）
+- values：`kubernetes/configs/redis-operator-values.yaml`、`kubernetes/configs/cloudnative-pg-values.yaml`
+- 镜像清单：`registry/images/` 的 Tier2「运维 / 数据库 Operator」
+- 运行时镜像（Redis 实例 / PostgreSQL 实例）由 CR 的 `spec.*.image` 指定，生产须指向本域仓库：
+
+```yaml
+# Redis（opstree）—— scheme C 短名
+spec:
+  image: harbor.test.baokuaiyun.com/baokuaiyun/opstree-redis:v7.0.15
+# Cluster (CloudNativePG)
+spec:
+  imageName: harbor.test.baokuaiyun.com/baokuaiyun/cloudnative-pg-postgresql:16.4
+```
+
+## 3.6 镜像迁移（→ 本域 Harbor）
 
 ```bash
-# 见 baokuaiyun-domain-migration.md 第四节
-# docker pull → tag → push harbor.baokuaiyun.com/k8s-library/...
-# 配置 containerd mirror 指向 Harbor
+# 见 docs/image-pipeline.md（scheme C，单项目 baokuaiyun）
+# 源镜像 → tar/直传 → harbor.test.baokuaiyun.com/baokuaiyun/<flat>:<tag>
+# 配置节点 containerd 指向 Harbor（insecure + robot 认证）
 ```
 
 ## 阶段 3 验收
 
 ```bash
-docker pull harbor.test.baokuaiyun.com/k8s-library/nginx:alpine  # ✅
-# git push → Flux 自动部署                                         # ✅
-# 租户 A 无法访问租户 B                                             # ✅
-# Backstage 自助创建 PG                                             # ✅
-# vCluster 内装独立 Operator                                       # ✅
+crictl pull harbor.test.baokuaiyun.com/baokuaiyun/opstree-redis:v7.0.15  # ✅
+# 见 docs/implementation-status.md（实际验收记录）
 ```
 
 ---
 
 # 阶段 4：持续升级和维护
 
-## 4.1 etcd 定时备份
+## 4.1 etcd 定时备份（本地 + 异地）
 
 ```bash
-cat > /data/kvm/backup-etcd.sh <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-DATE=$(date +%Y%m%d-%H%M%S)
-DIR=/data/backups/etcd
-mkdir -p $DIR
-ssh k8s-cp-1 "etcdctl snapshot save /tmp/etcd-$DATE.db \
-  --endpoints=https://127.0.0.1:2379 \
-  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
-  --cert=/etc/kubernetes/pki/etcd/server.crt \
-  --key=/etc/kubernetes/pki/etcd/server.key"
-scp k8s-cp-1:/tmp/etcd-$DATE.db $DIR/
-# 保留最近 7 天
-find $DIR -name "*.db" -mtime +7 -delete
-EOF
-chmod +x /data/kvm/backup-etcd.sh
-# crontab -e  加入: 0 2 * * * /data/kvm/backup-etcd.sh
+# 脚本已内置：本地快照 + 异地目录(NFS) + 可选 rsync + 保留策略
+OFFSITE_DIR=/data/backups/etcd-offsite OFFSITE_RETENTION_DAYS=30 \
+  bash scripts/backup-etcd.sh
+# crontab -e  加入: 0 2 * * * OFFSITE_DIR=/data/backups/etcd-offsite /root/k8s/scripts/backup-etcd.sh
 ```
 
-## 4.2 Velero 备份（PV + 灾难恢复）
+## 4.2 Velero 备份（集群资源 + PV 文件级）
 
 ```bash
-velero install \
-  --provider aws \
-  --plugins velero/velero-plugin-for-aws:v1.9.0 \
-  --bucket velero-backup \
-  --secret-file ./credentials-velero \
-  --use-volume-snapshots=false \
-  --backup-location-config region=oss-cn-hangzhou
-
-# 定时备份
-velero schedule create daily-backup --schedule="0 3 * * *" --ttl 168h
+# 一键安装（AWS 插件指向 OSS/MinIO）+ 应用每日 Schedule
+make velero
+# 内部等价于 scripts/velero-install.sh + scripts/velero-schedule.yaml
 
 # 恢复演练
-velero backup create test-backup --include-namespaces default
+velero backup create test-backup --include-namespaces platform-data
 velero restore create --from-backup test-backup
+```
+
+## 4.2.1 应用数据一致性备份（L1）
+
+```bash
+make app-backup            # CNPG Backup + Harbor dump + GitLab backup + Casdoor dump
+make app-restore APP=pg    # 恢复 runbook
+make verify-storage        # 存储/备份验收
 ```
 
 ## 4.3 版本升级 SOP

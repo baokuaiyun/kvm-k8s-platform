@@ -1,0 +1,22 @@
+# CloudNativePG Operator 配置
+# 镜像统一走本域仓库（__IMAGE_REPOSITORY__ 由 Makefile 用 sed 注入）
+# chart: cnpg/cloudnative-pg 0.23.2 (appVersion 1.25.1)
+# 1.25+ 才提供 Database CRD（共享实例 + 各应用独立库）
+image:
+  repository: __IMAGE_REPOSITORY__/ghcr.io.cloudnative-pg.cloudnative-pg
+  tag: 1.25.1
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# 安装 CRD（Cluster/Backup/ScheduledBackup 等）
+crds:
+  create: true
+
+config:
+  create: true
+  data: {}
+
+# PostgreSQL 实例镜像由 Cluster.spec.imageName 指定，生产请指向本域镜像：
+#   $(IMAGE_REPOSITORY)/ghcr.io.cloudnative-pg.postgresql:16.4
+# （默认目录镜像 ghcr.io/cloudnative-pg/postgresql:16.4 已列入 acr-images-list.txt）

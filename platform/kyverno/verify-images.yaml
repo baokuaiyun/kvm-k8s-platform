@@ -1,0 +1,26 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-signed-cilium
+spec:
+  validationFailureAction: Audit
+  webhookTimeoutSeconds: 30
+  rules:
+    - name: verify-signature
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      verifyImages:
+        - imageReferences:
+            - "harbor.test.baokuaiyun.com/baokuaiyun/cilium-cilium*"
+          mutateDigest: false
+          attestors:
+            - count: 1
+              entries:
+                - keys:
+                    publicKeys: |-
+                      -----BEGIN PUBLIC KEY-----
+                      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVfQFMZXoNntwOdzbmcpgzYT65CJx
+                      hZqfszGHUHckTTmlGbAiCZitDHX2hCf8vJh4zvqA/3Bvw6ZhehfNOnDlSg==
+                      -----END PUBLIC KEY-----

@@ -1,0 +1,23 @@
+# Velero 定时备份：集群资源 + PV 文件级数据（Kopia node-agent）
+# 保留策略 TTL 由 BACKUP_RETENTION_DAYS 决定（默认 7 天）
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-backup
+  namespace: velero
+spec:
+  schedule: "0 3 * * *"          # 每天 03:00
+  template:
+    ttl: 168h0m0s                # 7 天
+    includedNamespaces:
+      - harbor
+      - gitlab
+      - casdoor
+      - platform-data
+      - monitoring
+    excludedResources:
+      - events
+      - events.events.k8s.io
+    snapshotVolumes: true
+    defaultVolumesToFsBackup: true
+    storageLocation: default

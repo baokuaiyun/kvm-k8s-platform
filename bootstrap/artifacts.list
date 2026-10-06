@@ -1,0 +1,21 @@
+# Day-0 引导包清单（离线破环用）
+# 说明：以下为"要把集群核心 + 数据平面 + Harbor + Flux 自启起来"所需的最小制品集合。
+# 解析来源：components/<plane>/<name>/component.yaml（images/artifacts）
+# 生成命令：make resolve-artifacts FLEET_MODE=mgmt FLEET_ENV=drill
+#           -> locks/mgmt-drill.lock
+#
+# 引导包涵盖的组件（mode=mgmt）：
+#   - infra/cilium
+#   - infra/longhorn
+#   - infra/cert-manager
+#   - infra/kgateway
+#   - data/cloudnative-pg
+#   - data/redis-operator
+#   - platform/harbor
+#   - platform/flux            (含 distribution manifests 制品)
+#
+# 另需的"非镜像"制品（chart）：
+#   cilium-1.16.0.tgz  longhorn-1.7.0.tgz  cert-manager-v1.15.3.tgz  kgateway-2.4.5.tgz
+#   cloudnative-pg-0.23.2.tgz  redis-operator-0.16.4.tgz  harbor-1.15.0.tgz  flux-operator-0.61.0.tgz
+#
+# 介质：宿主机 HELM_CHARTS_DIR + IMAGE_CACHE_DIR(tar) + 本地 registry(zot/registry:2)

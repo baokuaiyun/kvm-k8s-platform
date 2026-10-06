@@ -45,7 +45,8 @@ spec:
               instances: 3
               storage:
                 size: 10Gi
-                storageClass: longhorn
+                # 规范 SC 名称，drill=Longhorn / prod=阿里云盘 均由 storage/apply.sh 提供
+                storageClass: app-storage
     patches:
     - type: FromCompositeFieldPath
       fromFieldPath: spec.team

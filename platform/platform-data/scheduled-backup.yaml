@@ -1,0 +1,15 @@
+# 共享 PG 定时备份（barman 对象存储，便携；drill 用 MinIO）
+# 说明：method=volumeSnapshot 需 Snapshotter CRD + VolumeSnapshotClass；
+#       method=barmanObjectStore 只需 S3 出口（可移植到 OSS，无需快照组件）。
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: platform-pg-daily
+  namespace: __PLATFORM_DATA_NS__
+spec:
+  # 6 段 cron（含秒）；每天 02:00:00
+  schedule: "0 0 2 * * *"
+  backupOwnerReference: self
+  method: barmanObjectStore
+  cluster:
+    name: platform-pg

@@ -53,13 +53,33 @@ markdown_extensions:
 
 nav:
   - 首页: index.md
-  - 实施手册: implementation-playbook.md
+  - 实施矩阵(总纲): implementation-matrix.md
+  - 集群类型(管理/生产分离): cluster-types.md
+  - 仓拓扑与跨仓契约(分仓骨架): repo-topology.md
+  - 状态账本(进度源): state-ledger.md
+  - 四平面完成定义(DoD): plane-dod.md
+  - 身份映射(OIDC): identity-mapping.md
+  - GitOps Fleet(Flux Operator): gitops-fleet.md
+  - 引导顺序(两平面+按需制品): bootstrap-order.md
+  - 数据来源(local/shared): data-source.md
+  - 数据平面管理: data-plane-management.md
+  - 实施状态总览: implementation-status.md
+  - 实施手册(命令详解): implementation-playbook.md
   - 环境差异: environment-differences.md
   - 阿里云部署: alicloud-deployment.md
   - 域名/证书迁移: baokuaiyun-domain-migration.md
   - 多租户架构: tenant-isolation-architecture.md
   - Makefile 设计: makefile-design.md
-  - ACR 镜像同步: acr-image-sync.md
+  - 镜像管道(本域 Harbor): image-pipeline.md
+  - 生产同构入口(Gateway): access-gateway.md
   - Helm Chart 分发: helm-chart-distribution.md
+  - ACR 镜像同步(旧): acr-image-sync.md
+  - 存储规划(SC/PV/云盘): storage-plan.md
+  - Longhorn 引擎镜像迁移/恢复: longhorn-engine-image-migration.md
+  - 应用数据与备份: application-data.md
+  - 数据分级: data-classification.md
+  - 凭据管理: secret-management.md
+  - 共享数据层(PG/Redis): platform-data.md
   - 统一用户管理(Casdoor): identity-sso-casdoor.md
+  - GitLab(Operator+CNG): gitlab-cng-operator.md
   - 镜像管理: image-management.md

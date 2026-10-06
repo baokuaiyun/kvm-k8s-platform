@@ -11,6 +11,9 @@ RENDER="/tmp/casdoor-render"
 : "${CASDOOR_DB_USER:?CASDOOR_DB_USER 未设置}"
 : "${CASDOOR_DB_PASS:?CASDOOR_DB_PASS 未设置}"
 : "${CASDOOR_DB_NAME:?CASDOOR_DB_NAME 未设置}"
+# 共享 PG（platform-data）；默认与 variables.mk 一致
+: "${PLATFORM_DATA_NS:=platform-data}"
+PG_HOST="platform-pg-rw.${PLATFORM_DATA_NS}.svc.cluster.local"
 
 command -v kubectl >/dev/null 2>&1 || { echo "[!] 需要 kubectl"; exit 1; }
 
@@ -22,14 +25,14 @@ for f in "$DIR"/*.yaml; do
       -e "s|__CASDOOR_DB_PASS__|${CASDOOR_DB_PASS}|g" \
       -e "s|__CASDOOR_DB_NAME__|${CASDOOR_DB_NAME}|g" \
       -e "s|__CASDOOR_HOST__|${CASDOOR_HOST}|g" \
+      -e "s|__PG_HOST__|${PG_HOST}|g" \
       "$f" > "$RENDER/$(basename "$f")"
 done
 
-echo "[+] 应用 Casdoor 清单..."
+echo "[+] 应用 Casdoor 清单（数据库使用共享 platform-pg/${CASDOOR_DB_NAME}）..."
 kubectl apply -k "$RENDER"
 
-echo "[+] 等待 postgres/casdoor 就绪..."
-kubectl -n casdoor rollout status deploy/casdoor-postgres --timeout=240s || true
+echo "[+] 等待 casdoor 就绪..."
 kubectl -n casdoor rollout status deploy/casdoor --timeout=300s || true
 
 echo "[+] Casdoor: https://${CASDOOR_HOST}  （初始管理员通常 admin/123，请立即改密）"

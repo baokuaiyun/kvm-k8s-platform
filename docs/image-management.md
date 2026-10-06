@@ -6,7 +6,7 @@
 > KVM 宿主机从 ACR 拉取并**重命名成本域镜像**、预载进节点 containerd，再以本域 `--image-repository` 初始化集群。
 > 本文档保留「镜像清单 / Harbor 推送 / proxy-cache / containerd mirror」等**运行期**内容。
 
-## 一、镜像清单（registry/images-list.txt）
+## 一、镜像清单（registry/images/）
 
 ```
 # ============ Kubernetes 核心组件 (registry.k8s.io) ============
@@ -68,9 +68,13 @@ goharbor/redis-photon:v2.11.0
 goharbor/trivy-adapter-photon:v2.11.0
 
 # ============ 数据库 Operator ============
-ghcr.io/cloudnative-pg/cloudnative-pg:1.24.0
-quay.io/opstree/redis-operator:v0.17.0
-quay.io/opstree/redis:v7.2.4
+ghcr.io/cloudnative-pg/cloudnative-pg:1.25.1
+ghcr.io/ot-container-kit/redis-operator/redis-operator:v0.17.0
+# 运行时镜像（由 CR 指定）
+ghcr.io/cloudnative-pg/postgresql:16.4
+quay.io/opstree/redis:v7.0.15
+quay.io/opstree/redis-sentinel:v7.0.15
+quay.io/opstree/redis-exporter:v1.44.0
 
 # ============ 常用工具 ============
 docker.io/library/busybox:1.36

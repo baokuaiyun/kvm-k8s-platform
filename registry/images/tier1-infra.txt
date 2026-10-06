@@ -1,0 +1,20 @@
+# 基础设施（Longhorn + cert-manager）
+# 格式: <源镜像>  <旧本域仓库后缀>  <Tier>  [<ACR后缀>]
+
+docker.io/longhornio/longhorn-manager:v1.7.0        longhornio.longhorn-manager              Tier1
+docker.io/longhornio/longhorn-engine:v1.7.0         longhornio.longhorn-engine               Tier1
+docker.io/longhornio/longhorn-ui:v1.7.0             longhornio.longhorn-ui                   Tier1
+docker.io/longhornio/longhorn-instance-manager:v1.7.0 longhornio.longhorn-instance-manager   Tier1
+docker.io/longhornio/longhorn-share-manager:v1.7.0  longhornio.longhorn-share-manager        Tier1
+docker.io/longhornio/backing-image-manager:v1.7.0   longhornio.backing-image-manager         Tier1
+docker.io/longhornio/csi-attacher:v4.6.1            longhornio.csi-attacher                  Tier1
+docker.io/longhornio/csi-provisioner:v4.0.1         longhornio.csi-provisioner               Tier1
+docker.io/longhornio/csi-resizer:v1.11.1            longhornio.csi-resizer                   Tier1
+docker.io/longhornio/csi-snapshotter:v7.0.2         longhornio.csi-snapshotter               Tier1
+docker.io/longhornio/csi-node-driver-registrar:v2.11.1 longhornio.csi-node-driver-registrar  Tier1
+docker.io/longhornio/livenessprobe:v2.13.1          longhornio.livenessprobe                 Tier1
+quay.io/jetstack/cert-manager-controller:v1.15.3    quay.jetstack.cert-manager-controller    Tier1
+quay.io/jetstack/cert-manager-webhook:v1.15.3       quay.jetstack.cert-manager-webhook       Tier1
+quay.io/jetstack/cert-manager-cainjector:v1.15.3    quay.jetstack.cert-manager-cainjector    Tier1
+quay.io/jetstack/cert-manager-acmesolver:v1.15.3    quay.jetstack.cert-manager-acmesolver    Tier1
+quay.io/jetstack/cert-manager-startupapicheck:v1.15.3 quay.jetstack.cert-manager-startupapicheck Tier1

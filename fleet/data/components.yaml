@@ -1,0 +1,7 @@
+# 集群模式 data（独立数据集群 B）：仅数据底座，通常不需要 Flux
+mode: data
+components:
+  - cilium
+  - longhorn
+  - cloudnative-pg
+  - redis-operator

@@ -1,0 +1,10 @@
+name: kgateway
+plane: infra
+fleet: [all-in-one, mgmt, biz]
+env: [drill, prod, enterprise]
+chart: kgateway-2.4.5.tgz
+# 注意：当前 kgateway 控制器镜像尚未镜像入 Harbor（现网直接从 ghcr 镜像源拉），
+# 此处给出目标 ref，sync 时从 GHCR 镜像源导入 Harbor 以对齐"单一源"。
+images:
+  - ghcr.io/kgateway-dev/kgateway:v2.4.5    harbor.test.baokuaiyun.com/baokuaiyun/kgateway-dev-kgateway:v2.4.5
+type: [A, B]

@@ -1,0 +1,34 @@
+# 共享 Redis（单主多从）—— redis-operator RedisReplication
+# 由 deploy.sh 渲染 __占位__ 后 apply
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: platform-redis
+  namespace: __PLATFORM_DATA_NS__
+spec:
+  clusterSize: __REDIS_CLUSTER_SIZE__
+  kubernetesConfig:
+    image: __IMAGE_REPOSITORY__/quay.opstree.redis:v7.0.15
+    imagePullPolicy: IfNotPresent
+    redisSecret:
+      name: platform-redis-cred
+      key: password
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  # 共享实例折中策略：Harbor 倾向 noeviction（避免丢 job）
+  redisConfig:
+    additionalRedisConfig: |
+      maxmemory-policy noeviction
+  storage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: __STORAGE_CLASS__
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: __REDIS_STORAGE_SIZE__
+  redisExporter:
+    enabled: false
+    image: __IMAGE_REPOSITORY__/quay.opstree.redis-exporter:v1.44.0

@@ -1,0 +1,72 @@
+# Harbor —— 外部依赖：共享 CNPG PostgreSQL + 共享 Redis（platform-data）
+# chart: harbor/harbor 1.15.0 (app 2.11.0)
+# __占位__ 由 Makefile harbor 目标用 sed 注入
+externalURL: https://__HARBOR_HOST__
+harborAdminPassword: __HARBOR_PASS__
+
+expose:
+  type: clusterIP
+  tls:
+    enabled: false
+
+# 镜像统一走本域仓库（预载影子镜像）
+nginx:
+  image:
+    repository: __IMAGE_REPOSITORY__/goharbor-nginx-photon
+portal:
+  image:
+    repository: __IMAGE_REPOSITORY__/goharbor-harbor-portal
+core:
+  image:
+    repository: __IMAGE_REPOSITORY__/goharbor-harbor-core
+jobservice:
+  image:
+    repository: __IMAGE_REPOSITORY__/goharbor-harbor-jobservice
+registry:
+  registry:
+    image:
+      repository: __IMAGE_REPOSITORY__/goharbor-registry-photon
+  controller:
+    image:
+      repository: __IMAGE_REPOSITORY__/goharbor-harbor-registryctl
+exporter:
+  image:
+    repository: __IMAGE_REPOSITORY__/goharbor-harbor-exporter
+trivy:
+  enabled: true
+  image:
+    repository: __IMAGE_REPOSITORY__/goharbor-trivy-adapter-photon
+
+# 外部 PostgreSQL（platform-pg-rw，库 registry，角色 harbor）
+database:
+  type: external
+  external:
+    host: __PG_HOST__
+    port: "5432"
+    username: harbor
+    password: __PG_HARBOR_PASS__
+    coreDatabase: registry
+    sslmode: disable
+
+# 外部 Redis（platform-redis）
+redis:
+  type: external
+  external:
+    addr: __REDIS_HOST__:6379
+    password: __REDIS_PASS__
+
+persistence:
+  enabled: true
+  persistentVolumeClaim:
+    registry:
+      storageClass: __STORAGE_CLASS__
+      size: __HARBOR_REGISTRY_SIZE__
+    jobservice:
+      storageClass: __STORAGE_CLASS__
+      size: __HARBOR_JOBSERVICE_SIZE__
+    trivy:
+      storageClass: __STORAGE_CLASS__
+      size: __HARBOR_TRIVY_SIZE__
+
+metrics:
+  enabled: true

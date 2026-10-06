@@ -1,0 +1,12 @@
+# 集群模式 mgmt（工具链+数据）：自托管 Harbor/Git、供成员依赖
+mode: mgmt
+components:
+  - cilium
+  - longhorn
+  - cert-manager
+  - kgateway
+  - cloudnative-pg
+  - redis-operator
+  - harbor
+  - flux
+  - observability

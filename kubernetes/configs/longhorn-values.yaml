@@ -6,39 +6,39 @@ defaultSettings:
 image:
   longhorn:
     engine:
-      repository: __IMAGE_REPOSITORY__/longhornio.longhorn-engine
+      repository: __IMAGE_REPOSITORY__/longhornio-longhorn-engine
       tag: v1.7.0
     manager:
-      repository: __IMAGE_REPOSITORY__/longhornio.longhorn-manager
+      repository: __IMAGE_REPOSITORY__/longhornio-longhorn-manager
       tag: v1.7.0
     ui:
-      repository: __IMAGE_REPOSITORY__/longhornio.longhorn-ui
+      repository: __IMAGE_REPOSITORY__/longhornio-longhorn-ui
       tag: v1.7.0
     instanceManager:
-      repository: __IMAGE_REPOSITORY__/longhornio.longhorn-instance-manager
+      repository: __IMAGE_REPOSITORY__/longhornio-longhorn-instance-manager
       tag: v1.7.0
     shareManager:
-      repository: __IMAGE_REPOSITORY__/longhornio.longhorn-share-manager
+      repository: __IMAGE_REPOSITORY__/longhornio-longhorn-share-manager
       tag: v1.7.0
     backingImageManager:
-      repository: __IMAGE_REPOSITORY__/longhornio.backing-image-manager
+      repository: __IMAGE_REPOSITORY__/longhornio-backing-image-manager
       tag: v1.7.0
   csi:
     attacher:
-      repository: __IMAGE_REPOSITORY__/longhornio.csi-attacher
-      tag: v4.4.3
+      repository: __IMAGE_REPOSITORY__/longhornio-csi-attacher
+      tag: v4.6.1
     provisioner:
-      repository: __IMAGE_REPOSITORY__/longhornio.csi-provisioner
-      tag: v3.6.3
+      repository: __IMAGE_REPOSITORY__/longhornio-csi-provisioner
+      tag: v4.0.1
     resizer:
-      repository: __IMAGE_REPOSITORY__/longhornio.csi-resizer
-      tag: v1.9.3
+      repository: __IMAGE_REPOSITORY__/longhornio-csi-resizer
+      tag: v1.11.1
     snapshotter:
-      repository: __IMAGE_REPOSITORY__/longhornio.csi-snapshotter
-      tag: v6.3.3
+      repository: __IMAGE_REPOSITORY__/longhornio-csi-snapshotter
+      tag: v7.0.2
     nodeDriverRegistrar:
-      repository: __IMAGE_REPOSITORY__/longhornio.csi-node-driver-registrar
-      tag: v2.10.1
+      repository: __IMAGE_REPOSITORY__/longhornio-csi-node-driver-registrar
+      tag: v2.11.1
     livenessProbe:
-      repository: __IMAGE_REPOSITORY__/longhornio.livenessprobe
+      repository: __IMAGE_REPOSITORY__/longhornio-livenessprobe
       tag: v2.13.1

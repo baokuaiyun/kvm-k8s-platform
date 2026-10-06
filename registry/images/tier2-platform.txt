@@ -1,0 +1,35 @@
+# 平台/应用
+# 格式: <源镜像>  <旧本域仓库后缀>  <Tier>  [<ACR后缀>]
+
+registry.k8s.io/metrics-server/metrics-server:v0.7.1 registry.k8s.io.metrics-server.metrics-server Tier2
+ghcr.io/cloudnative-pg/cloudnative-pg:1.25.1        ghcr.io.cloudnative-pg.cloudnative-pg    Tier2
+ghcr.io/ot-container-kit/redis-operator/redis-operator:v0.17.0 ghcr.io.ot-container-kit.redis-operator.redis-operator Tier2
+quay.io/opstree/redis:v7.0.15                       quay.opstree.redis                       Tier2
+quay.io/opstree/redis-sentinel:v7.0.15              quay.opstree.redis-sentinel              Tier2
+quay.io/opstree/redis-exporter:v1.44.0              quay.opstree.redis-exporter              Tier2
+ghcr.io/cloudnative-pg/postgresql:16.4              ghcr.io.cloudnative-pg.postgresql        Tier2
+docker.io/casbin/casdoor:latest                     docker.io.casbin.casdoor                 Tier2
+docker.io/library/busybox:1.36                      docker.io.library.busybox                Tier2
+docker.io/library/nginx:stable-alpine               docker.io.library.nginx                  Tier2
+docker.io/library/alpine:3.20                       docker.io.library.alpine                 Tier2
+docker.io/curlimages/curl:8.9.0                     docker.io.curlimages.curl                Tier2
+docker.io/goharbor/harbor-core:v2.11.0              docker.io.goharbor.harbor-core           Tier2
+docker.io/goharbor/harbor-jobservice:v2.11.0        docker.io.goharbor.harbor-jobservice     Tier2
+docker.io/goharbor/harbor-portal:v2.11.0            docker.io.goharbor.harbor-portal         Tier2
+docker.io/goharbor/harbor-registryctl:v2.11.0       docker.io.goharbor.harbor-registryctl    Tier2
+docker.io/goharbor/harbor-exporter:v2.11.0          docker.io.goharbor.harbor-exporter       Tier2
+docker.io/goharbor/registry-photon:v2.11.0          docker.io.goharbor.registry-photon       Tier2
+docker.io/goharbor/nginx-photon:v2.11.0             docker.io.goharbor.nginx-photon          Tier2
+docker.io/goharbor/trivy-adapter-photon:v2.11.0     docker.io.goharbor.trivy-adapter-photon  Tier2
+registry.gitlab.com/gitlab-org/build/cng/certificates:v17.2.0       registry.gitlab.com.gitlab-org.build.cng.certificates      Tier2
+registry.gitlab.com/gitlab-org/build/cng/gitaly:v17.2.0             registry.gitlab.com.gitlab-org.build.cng.gitaly            Tier2
+registry.gitlab.com/gitlab-org/build/cng/gitlab-base:v17.2.0        registry.gitlab.com.gitlab-org.build.cng.gitlab-base       Tier2
+registry.gitlab.com/gitlab-org/build/cng/gitlab-exporter:15.0.0     registry.gitlab.com.gitlab-org.build.cng.gitlab-exporter   Tier2
+registry.gitlab.com/gitlab-org/build/cng/gitlab-kas:v17.2.0         registry.gitlab.com.gitlab-org.build.cng.gitlab-kas         Tier2
+registry.gitlab.com/gitlab-org/build/cng/gitlab-shell:v14.37.0      registry.gitlab.com.gitlab-org.build.cng.gitlab-shell       Tier2
+registry.gitlab.com/gitlab-org/build/cng/gitlab-sidekiq-ee:v17.2.0  registry.gitlab.com.gitlab-org.build.cng.gitlab-sidekiq-ee  Tier2
+registry.gitlab.com/gitlab-org/build/cng/gitlab-toolbox-ee:v17.2.0  registry.gitlab.com.gitlab-org.build.cng.gitlab-toolbox-ee  Tier2
+registry.gitlab.com/gitlab-org/build/cng/gitlab-webservice-ee:v17.2.0 registry.gitlab.com.gitlab-org.build.cng.gitlab-webservice-ee Tier2
+registry.gitlab.com/gitlab-org/build/cng/gitlab-workhorse-ee:v17.2.0 registry.gitlab.com.gitlab-org.build.cng.gitlab-workhorse-ee Tier2
+registry.gitlab.com/gitlab-org/build/cng/kubectl:v17.2.0            registry.gitlab.com.gitlab-org.build.cng.kubectl           Tier2
+registry.gitlab.com/gitlab-org/gitlab-runner:alpine-v17.1.0         registry.gitlab.com.gitlab-org.gitlab-runner               Tier2

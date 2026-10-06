@@ -1,0 +1,13 @@
+# 可观测性
+# 格式: <源镜像>  <旧本域仓库后缀>  <Tier>  [<ACR后缀>]
+
+quay.io/prometheus/prometheus:v2.54.0               quay.prometheus.prometheus               Tier2
+quay.io/prometheus/alertmanager:v0.27.0             quay.prometheus.alertmanager             Tier2
+quay.io/prometheus/node-exporter:v1.8.2             quay.prometheus.node-exporter            Tier2
+registry.k8s.io/kube-state-metrics:v2.13.0          registry.k8s.io.kube-state-metrics       Tier2
+quay.io/prometheus-operator/prometheus-operator:v0.76.0 quay.prometheus-operator.prometheus-operator Tier2
+docker.io/grafana/grafana:11.1.0                    docker.io.grafana.grafana                Tier2
+docker.io/grafana/loki:3.1.0                        docker.io.grafana.loki                   Tier2
+docker.io/grafana/promtail:3.1.0                    docker.io.grafana.promtail               Tier2
+quay.io/prometheus/blackbox-exporter:v0.25.0        quay.prometheus.blackbox-exporter        Tier2
+otel/opentelemetry-collector-contrib:0.104.0        otel.opentelemetry-collector-contrib     Tier2

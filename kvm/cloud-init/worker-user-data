@@ -22,6 +22,7 @@ packages:
   - jq
   - ipvsadm
   - nfs-common
+  - open-iscsi
 
 write_files:
   - path: /etc/apt/sources.list.d/debian.sources

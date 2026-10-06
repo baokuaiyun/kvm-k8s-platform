@@ -54,3 +54,74 @@ spec:
         severity: warning
       annotations:
         summary: "证书 {{ $labels.name }} 7 天内到期"
+  - name: storage
+    rules:
+    # ---- PV/PVC 容量 ----
+    - alert: PVCNearlyFull
+      expr: |
+        kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes > 0.85
+      for: 15m
+      labels:
+        severity: warning
+      annotations:
+        summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} 使用率 >85%"
+    - alert: PVCCriticalFull
+      expr: |
+        kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes > 0.95
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} 使用率 >95%，即将写满"
+    # ---- Longhorn 卷健康（0=unknown,1=healthy,2=degraded,3=faulted）----
+    - alert: LonghornVolumeDegraded
+      expr: longhorn_volume_robustness == 2
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Longhorn 卷 {{ $labels.volume }} 降级（副本不足）"
+    - alert: LonghornVolumeFaulted
+      expr: longhorn_volume_robustness == 3
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Longhorn 卷 {{ $labels.volume }} 故障，数据有风险"
+    - alert: LonghornNodeStorageHigh
+      expr: |
+        longhorn_node_storage_usage_bytes / longhorn_node_storage_capacity_bytes > 0.8
+      for: 15m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Longhorn 节点 {{ $labels.node }} 存储使用率 >80%"
+    - alert: LonghornBackupTargetUnreachable
+      expr: longhorn_backup_target_available == 0
+      for: 30m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Longhorn 备份目标不可达，异地备份已中断"
+    # ---- 备份时效（Velero / CNPG）----
+    - alert: VeleroBackupFailure
+      expr: increase(velero_backup_failure_total[6h]) > 0
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Velero 备份失败（schedule={{ $labels.schedule }}）"
+    - alert: VeleroBackupStale
+      expr: time() - velero_backup_last_successful_timestamp > 172800
+      for: 1h
+      labels:
+        severity: critical
+      annotations:
+        summary: "Velero 超过 48h 无成功备份"
+    - alert: CNPGBackupStale
+      expr: time() - cnpg_collector_last_available_backup_timestamp > 172800
+      for: 1h
+      labels:
+        severity: critical
+      annotations:
+        summary: "CNPG 集群 {{ $labels.cluster }} 超过 48h 无可用备份"
