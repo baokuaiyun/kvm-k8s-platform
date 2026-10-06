@@ -1,0 +1,40 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+spec:
+  interval: 1h
+  releaseName: cert-manager          # 对齐现有 release -> 接管
+  targetNamespace: cert-manager
+  storageNamespace: cert-manager
+  install:
+    crds: Create
+    createNamespace: false
+  upgrade:
+    crds: CreateReplace
+  chartRef:
+    kind: OCIRepository
+    name: cert-manager-chart
+    namespace: cert-manager
+  values:
+    installCRDs: true
+    image:
+      repository: harbor.test.baokuaiyun.com/baokuaiyun/jetstack-cert-manager-controller
+      tag: v1.15.3
+    webhook:
+      image:
+        repository: harbor.test.baokuaiyun.com/baokuaiyun/jetstack-cert-manager-webhook
+        tag: v1.15.3
+    cainjector:
+      image:
+        repository: harbor.test.baokuaiyun.com/baokuaiyun/jetstack-cert-manager-cainjector
+        tag: v1.15.3
+    startupapicheck:
+      image:
+        repository: harbor.test.baokuaiyun.com/baokuaiyun/jetstack-cert-manager-startupapicheck
+        tag: v1.15.3
+    acmesolver:
+      image:
+        repository: harbor.test.baokuaiyun.com/baokuaiyun/jetstack-cert-manager-acmesolver
+        tag: v1.15.3

@@ -71,6 +71,18 @@ repo/
   ```
 - 示例组件 `gitops/components/apps/demo`（安全验证全链路：stack→ResourceSet→OCIRepository(验签)→Kustomization→ConfigMap）。
 
+### 真实组件纳管（示例：cert-manager，已接管）
+- 组件补 `base/`（Flux `OCIRepository`(Harbor chart) + `HelmRelease`）+ `overlays/<env>/`。
+- HelmRelease `releaseName` 与现有 release 对齐 → **Flux 接管**（如 `cert-manager`）。
+- 多租户下 HelmRelease 需集群级权限 → 渲染器为组件的 `flux` SA 加 **ClusterRoleBinding(cluster-admin)**。
+- 结果：`HelmRelease/cert-manager` Ready、证书正常；`gitops/components/infra/cert-manager`。
+
+### CI（GitLab）：组件改动 → 自动出制品
+- `.gitlab-ci.yml`：push 命中 `gitops/components/**` 时，用 `BUILD_IMAGE`（含 git/tar/oras/cosign）跑 `bootstrap/ci-build-components.sh`。
+- 脚本按 diff 找出改动的组件目录 → `build-component --push --sign`。
+- 构建工具镜像：`bash ci/build-tools.sh`（`ci/tools.Dockerfile` + skopeo 推 Harbor）。
+- 需在 GitLab 配置 CI 变量：`HARBOR_*`、`COSIGN_KEY_B64`、`COSIGN_PASSWORD`；并注册 Runner。
+
 ## 三、交付流（Git → CI → OCI → Flux）
 
 ```

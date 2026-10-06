@@ -33,6 +33,8 @@
 | GitOps 期望态独立到 `gitops/` + 参数说明 | 工具链 | toolchain | — | ✅ | fleet/components/tenants/roles/planes/profiles/repo-split → `gitops/`；新增 `gitops/{README,settings}.md`、`docs/parameters.md`；`locks` 移至 `gitops/locks`（gitignored）；Makefile/bootstrap/CODEOWNERS/docs 引用同步；解析/验收通过 |
 | fleet 叠加(stack)与单独(standalone) | 工具链 | toolchain | — | ✅ | `gitops/fleet/layers/*` + `clusters/<c>/stack.yaml`；`FLEET_MODES` 并集去重+类型过滤；lock=`<units>-<env>-<type>.lock`；`ENABLE_FLUX=false` → `bootstrap/member/standalone.sh`；实测 core+data=31 / core+gitlab(A)=39 / 同步跳过 |
 | stack→ResourceSet 真实渲染 + 组件制品 | 工具链 | toolchain | — | ✅ | `bootstrap/render-stack.sh`（按 stack 渲染 OCIRepository(verify)+Kustomization）；`bootstrap/build-component.sh`（组件目录→OCI+签名）；`make {build-component,render-stack}`；`demo` 全链路验证（SourceVerified=True、ConfigMap 落地） |
+| 真实组件纳管（cert-manager 接管） | 工具链 | toolchain | — | ✅ | `gitops/components/infra/cert-manager/{base,overlays/drill}`（OCIRepository(chart)+HelmRelease releaseName=cert-manager）；渲染器加 ClusterRoleBinding(cluster-admin)；HelmRelease Ready、证书正常 |
+| GitLab CI（组件自动出制品） | 工具链 | toolchain | — | ✅ | `.gitlab-ci.yml` + `bootstrap/ci-build-components.sh`（按 diff 构建+签名）；`ci/tools.Dockerfile` + `ci/build-tools.sh`（工具镜像）；待注册 Runner |
 
 ## 待办
 

@@ -1,0 +1,13 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: cert-manager-chart
+  namespace: cert-manager
+spec:
+  interval: 10m
+  insecure: true
+  secretRef:
+    name: harbor-auth
+  url: oci://harbor.test.baokuaiyun.com/baokuaiyun/cert-manager
+  ref:
+    tag: v1.15.3

@@ -1,0 +1,33 @@
+# GitLab CI：组件目录改动 → 构建 OCI 制品 + cosign 签名 → 推入本域 Harbor
+# 前置：
+#   - 注册 GitLab Runner（drill 可先跑 docker/kubernetes executor）
+#   - 在 GitLab 项目 CI/CD Variables 配置：
+#       HARBOR_HOST=harbor.test.baokuaiyun.com
+#       HARBOR_PROJECT=baokuaiyun
+#       HARBOR_ROBOT_USER=robot$baokuaiyun+pushpull
+#       HARBOR_ROBOT_PASS=<secret>            (Masked)
+#       COSIGN_KEY_B64=<base64 of cosign.key> (Masked)
+#       COSIGN_PASSWORD=<secret>              (Masked)
+#   - 运行镜像需含: git tar oras cosign  （用 BUILD_IMAGE 指定；见 docs/gitops-fleet.md）
+
+stages: [build]
+
+variables:
+  BUILD_IMAGE: "harbor.test.baokuaiyun.com/baokuaiyun/ci-tools:latest"
+  COMPONENT_TAG: "latest"
+
+build-components:
+  stage: build
+  image: $BUILD_IMAGE
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - "gitops/components/**/*"
+        - "bootstrap/build-component.sh"
+        - "bootstrap/ci-build-components.sh"
+  before_script:
+    - export HARBOR_HOST HARBOR_PROJECT HARBOR_ROBOT_USER HARBOR_ROBOT_PASS
+    - if [ -n "${COSIGN_KEY_B64:-}" ]; then printf '%s' "$COSIGN_KEY_B64" | base64 -d > /tmp/cosign.key; export COSIGN_KEY=/tmp/cosign.key; fi
+    - export COSIGN_PASSWORD="${COSIGN_PASSWORD:-}"
+  script:
+    - bash bootstrap/ci-build-components.sh

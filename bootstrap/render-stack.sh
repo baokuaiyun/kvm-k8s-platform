@@ -83,6 +83,11 @@ ${inputs}  resources:
       metadata: {name: flux-admin, namespace: << inputs.component >>}
       roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: flux-admin}
       subjects: [{kind: ServiceAccount, name: flux, namespace: << inputs.component >>}]
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata: {name: flux-<< inputs.component >>}
+      roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: cluster-admin}
+      subjects: [{kind: ServiceAccount, name: flux, namespace: << inputs.component >>}]
     - apiVersion: v1
       kind: Secret
       metadata:
