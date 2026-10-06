@@ -305,10 +305,10 @@ flux-operator: ## 安装/升级 Flux Operator（Helm；chart+镜像走 Harbor，
 	bash platform/flux/install.sh
 
 gitops: flux-operator ## 安装 Flux Operator 并接入集群模式 fleet（all-in-one）
-	@echo "[+] 应用 fleet/${FLEET_MODE} FluxInstance ..."
-	kubectl apply -f fleet/$(FLEET_MODE)/flux-instance.yaml
+	@echo "[+] 应用 gitops/fleet/${FLEET_MODE} FluxInstance ..."
+	kubectl apply -f gitops/fleet/$(FLEET_MODE)/flux-instance.yaml
 	@echo "[+] 应用租户 ResourceSet 样板 ..."
-	kubectl apply -f tenants/infra.yaml
+	kubectl apply -f gitops/tenants/infra.yaml
 
 FLEET_ENV ?= drill
 SIGN ?= --sign
@@ -344,7 +344,7 @@ verify-bootstrap: ## 引导面验收（Harbor/Flux/模式制品）
 	@helm -n flux-system list | grep -q flux-operator && echo "  flux-operator: OK" || echo "  flux-operator: 缺失"
 	@kubectl -n flux-system get fluxinstance flux >/dev/null 2>&1 && echo "  FluxInstance: OK" || echo "  FluxInstance: 缺失"
 	@curl -sk --noproxy '*' -o /dev/null -w "  harbor: %{http_code}\n" https://$(HARBOR_HOST)/api/v2.0/ping || true
-	@if [ -f locks/$(FLEET_MODE)-$(FLEET_ENV)-$(CLUSTER_TYPE).lock ]; then echo "  lock: locks/$(FLEET_MODE)-$(FLEET_ENV)-$(CLUSTER_TYPE).lock ($$(grep -vc '^#' locks/$(FLEET_MODE)-$(FLEET_ENV)-$(CLUSTER_TYPE).lock) 条)"; else echo "  lock: 缺失（make resolve-artifacts）"; fi
+	@if [ -f gitops/locks/$(FLEET_MODE)-$(FLEET_ENV)-$(CLUSTER_TYPE).lock ]; then echo "  lock: gitops/locks/$(FLEET_MODE)-$(FLEET_ENV)-$(CLUSTER_TYPE).lock ($$(grep -vc '^#' gitops/locks/$(FLEET_MODE)-$(FLEET_ENV)-$(CLUSTER_TYPE).lock) 条)"; else echo "  lock: 缺失（make resolve-artifacts）"; fi
 
 tenants: ## 配置三模式租户
 	@echo "[+] 应用租户配置..."

@@ -30,3 +30,6 @@ __pycache__/
 .idea/
 .vscode/
 *.swp
+
+# GitOps 生成物（lock）
+gitops/locks/

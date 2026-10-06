@@ -28,8 +28,9 @@
 | 两平面边界 + 引导顺序文档 | — | — | — | ✅ | `docs/bootstrap-order.md`、`docs/data-source.md`；profiles 增 TOOLCHAIN_MODE/ENABLE_FLUX/DATA_SOURCE/GIT_MODE |
 | 引导脚本（mgmt 自启 / member 消费） | 引导面 | — | — | ✅ | `bootstrap/mgmt/*`（preflight/import-images/up-core/up-data/up-harbor/up-flux/bootstrap）+ `bootstrap/member/*` + `bootstrap/lib.sh`；`make mgmt-bootstrap`/`member-bootstrap`；preflight 通过（脚本语法全部校验） |
 | 集群类型划分（管理/开发者 vs 生产/业务） | — | — | — | ✅ | `docs/cluster-types.md`：两类各自递进 + 横切基线（安全/可观测/GitOps）；CI 属 A 侧，不进生产 |
-| 分仓骨架（拓扑 + 跨仓契约，生产时执行） | — | — | — | ✅ | `docs/repo-topology.md` + `repo-split.yaml`（机器可读 glob→仓→owner→制品）+ `CODEOWNERS`（模拟边界）+ `apps/README.md` 占位 |
+| 分仓骨架（拓扑 + 跨仓契约，生产时执行） | — | — | — | ✅ | `docs/repo-topology.md` + `gitops/repo-split.yaml`（机器可读 glob→仓→owner→制品）+ `CODEOWNERS`（模拟边界）+ `apps/README.md` 占位 |
 | 制品解析 lock 命名修齐 | 工具链 | — | — | ✅ | lock=`<mode>-<env>-<type>.lock`；resolve/sync/verify-bootstrap 已对齐；`make verify-bootstrap` 通过（73 条） |
+| GitOps 期望态独立到 `gitops/` + 参数说明 | 工具链 | toolchain | — | ✅ | fleet/components/tenants/roles/planes/profiles/repo-split → `gitops/`；新增 `gitops/{README,settings}.md`、`docs/parameters.md`；`locks` 移至 `gitops/locks`（gitignored）；Makefile/bootstrap/CODEOWNERS/docs 引用同步；解析/验收通过 |
 
 ## 待办
 

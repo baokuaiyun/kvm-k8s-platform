@@ -1,8 +1,8 @@
 # Day-0 引导包清单（离线破环用）
 # 说明：以下为"要把集群核心 + 数据平面 + Harbor + Flux 自启起来"所需的最小制品集合。
-# 解析来源：components/<plane>/<name>/component.yaml（images/artifacts）
+# 解析来源：gitops/components/<plane>/<name>/component.yaml（images/artifacts）
 # 生成命令：make resolve-artifacts FLEET_MODE=mgmt FLEET_ENV=drill
-#           -> locks/mgmt-drill.lock
+#           -> gitops/locks/mgmt-drill-all.lock
 #
 # 引导包涵盖的组件（mode=mgmt）：
 #   - infra/cilium

@@ -1,7 +1,7 @@
 # 仓拓扑与跨仓契约（分仓骨架）
 
 > 现状：**整合单仓**（本仓即为"平台仓"）。本文给出**生产/持续开发阶段的分仓拓扑**与
-> **跨仓契约**，作为规划骨架；真正分仓在生产时按 [`repo-split.yaml`](../repo-split.yaml) 执行。
+> **跨仓契约**，作为规划骨架；真正分仓在生产时按 [`repo-split.yaml`](../gitops/repo-split.yaml) 执行。
 > 关联 [`implementation-matrix.md`](implementation-matrix.md)、[`cluster-types.md`](cluster-types.md)、
 > [`gitops-fleet.md`](gitops-fleet.md)。
 
@@ -44,5 +44,5 @@
 
 ## 五、当前（整合期）如何"平滑"
 - 用 **`CODEOWNERS`** 模拟属主边界（平台 vs 应用），分仓时按同一边界迁移。
-- `repo-split.yaml` 声明 **路径 glob → 目标仓 → owner → 制品约定**，未来据此一键拆。
+- `gitops/repo-split.yaml` 声明 **路径 glob → 目标仓 → owner → 制品约定**，未来据此一键拆。
 - 目录暂不物理拆分；`apps/` 占位已预留（见 `apps/README.md`）。

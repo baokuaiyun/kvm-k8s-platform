@@ -10,20 +10,15 @@ repos:
     owner: platform-team
     paths:
       - bootstrap/**
-      - fleet/**
-      - layers/**
-      - components/infra/**
-      - components/platform/**
-      - components/data/**
-      - tenants/**
-      - roles/**
-      - profiles/**
       - docs/**
       - registry/**
       - scripts/**
       - storage/**
       - kvm/**
       - kubernetes/**
+      - platform/**
+      # GitOps 期望态（未来可拆为独立 gitops 库）
+      - gitops/**
     artifacts:
       naming: "oci://harbor/baokuaiyun/<component>:<tag>"   # scheme C
       cosign: "platform-team"                               # 独立签名主体
@@ -43,7 +38,7 @@ repos:
     description: 租户仓：强隔离客户专属配置
     owner: delivery
     paths:
-      - tenants/private/**
+      - gitops/tenants/private/**
     artifacts:
       naming: "oci://harbor/baokuaiyun/<tenant>-<app>:<tag>"
       cosign: "delivery"

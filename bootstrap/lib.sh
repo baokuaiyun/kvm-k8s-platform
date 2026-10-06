@@ -4,6 +4,8 @@ set -euo pipefail
 
 BOOT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export BOOT_ROOT
+# GitOps 期望态独立目录（未来可拆为独立库）
+export GITOPS_DIR="${GITOPS_DIR:-${BOOT_ROOT}/gitops}"
 
 HARBOR_HOST="${HARBOR_HOST:-harbor.test.baokuaiyun.com}"
 HARBOR_PROJECT="${HARBOR_PROJECT:-baokuaiyun}"

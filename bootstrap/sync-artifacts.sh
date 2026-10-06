@@ -3,7 +3,7 @@
 # 用法: bash bootstrap/sync-artifacts.sh <mode> [env] [--sign]
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+GITOPS_DIR="${GITOPS_DIR:-$(cd "$(dirname "$0")/../gitops" && pwd)}"
 MODE="${1:-all-in-one}"
 ENVNAME="${2:-drill}"
 SIGN=0; [ "${3:-}" = "--sign" ] && SIGN=1
@@ -21,7 +21,7 @@ MIRROR_GHCR="${MIRROR_GHCR:-ghcr.dockerproxy.net}"
 MIRROR_K8S="${MIRROR_K8S:-k8s-gcr.m.daocloud.io}"
 
 CTYPE="${CLUSTER_TYPE:-all}"
-LOCK="${ROOT}/locks/${MODE}-${ENVNAME}-${CTYPE}.lock"
+LOCK="${GITOPS_DIR}/locks/${MODE}-${ENVNAME}-${CTYPE}.lock"
 [ -f "$LOCK" ] || { echo "[!] 无 lock：${LOCK}（先跑 make resolve-artifacts FLEET_MODE=${MODE} FLEET_ENV=${ENVNAME} CLUSTER_TYPE=${CTYPE}）"; exit 1; }
 
 mirror() {
