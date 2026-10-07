@@ -51,6 +51,20 @@ make rebuild       # 删除→重建→平台可用（保留宿主存储）
 - `docs/makefile-design.md` — Makefile 设计
 - `docs/image-management.md` — 镜像管理
 
+### 本地预览 / 构建文档
+
+> 基于 MkDocs Material（配置见 `mkdocs.yml`），通过 Docker 运行，无需本地装 Python。
+
+```bash
+make docs        # 启动预览服务：http://<本机IP>:8000（实时热更新，Ctrl-C 停止）
+make docs-build  # 构建静态站点到 site/
+make docs-down   # 停止预览容器
+```
+
+- 端口可覆盖：`make docs DOCS_PORT=8001`
+- 镜像可覆盖：`make docs DOCS_IMAGE=<镜像>`
+- `docs/` 为文档源（`docs_dir`），新增文档后在 `mkdocs.yml` 的 `nav` 注册即出现在导航。
+
 ## 环境切换
 
 ```bash
