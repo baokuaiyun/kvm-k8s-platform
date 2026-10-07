@@ -83,7 +83,7 @@ dns-check: ## 验证内网 DNS（control-plane-endpoint）
 	dig @$(NET_GATEWAY) $(CP_ENDPOINT) +short
 
 biz-bridge: ## 建业务网桥 br-lan（桥接 eno1，D 方案；会短暂断宿主网，幂等带回滚）
-	@echo "[+] 建业务网桥 $(or $(BIZ_HOST_IFACE),br-lan)（桥接 $(BIZ_HOST_UPLINK），业务网 $(NET_BIZ_CIDR)）..."
+	@echo "[+] 建业务网桥 $(or $(BIZ_HOST_IFACE),br-lan)（桥接 $(BIZ_HOST_UPLINK)，业务网 $(NET_BIZ_CIDR)）..."
 	bash kvm/scripts/setup-br-lan.sh
 
 image-download: ## 下载 Debian 13 云镜像
