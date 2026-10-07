@@ -166,7 +166,7 @@ Service 是“如何稳定地访问一组 Pod”，**地址是虚拟的**，由 
 ### 5.2 部署形态：kubelet 静态 Pod
 - `kubernetes/scripts/setup-kube-vip.sh` 在**每台控制面**生成清单并下发到 `/etc/kubernetes/manifests/kube-vip.yaml`；
 - kubelet 发现清单自动拉起（**静态 Pod**，`hostNetwork: true`，`args: ["manager"]`）；
-- 镜像 `${IMAGE_REPOSITORY}/kube-vip:v0.8.7`（Harbor 里名字就是 `kube-vip`，见 5.9）；
+- 镜像 `${IMAGE_REPOSITORY}/kube-vip:v${KUBE_VIP_VERSION}`（默认 `v1.2.4`；Harbor 里名字就是 `kube-vip`，见 5.9）；
 - 能力：`NET_ADMIN/NET_RAW/SYS_TIME`。
 
 ### 5.3 引导时序（关键）
@@ -186,7 +186,7 @@ Service 是“如何稳定地访问一组 Pod”，**地址是虚拟的**，由 
 | `vip_arp` | `true` | 用 ARP/L2 宣告 |
 | `port` | `6443` | 暴露端口 |
 | `vip_interface` | `enp1s0`（留空自动探测） | VIP 所在网卡 |
-| `vip_cidr` | `32` | VIP 前缀 |
+| `vip_subnet` | `32` | VIP 前缀（v1.x 用 `vip_subnet`；v0.8.x 的 `vip_cidr` 已移除） |
 | `cp_enable` | `true` | 启用控制面模式 |
 | `cp_namespace` | `kube-system` | 命名空间 |
 | `vip_leaderelection` | `true` | 用 Kubernetes Lease 选举 |
@@ -225,7 +225,7 @@ kube-vip 是 **Go 单二进制/容器**，直接操作宿主内核网络。其�
 **官方文档**：kube-vip.io → `Docs/About/Architecture`。
 
 ### 5.9 安装细节（用什么软件 + 流程）
-**用什么软件**：kube-vip 本体是单二进制容器镜像 `ghcr.io/kube-vip/kube-vip:v0.8.7`，同步到本域 Harbor 为 `<IMAGE_REPOSITORY>/kube-vip:v0.8.7`；**没有 Helm、没有 cloud-provider、没有额外守护进程**。
+**用什么软件**：kube-vip 本体是单二进制容器镜像 `ghcr.io/kube-vip/kube-vip:v${KUBE_VIP_VERSION}`（默认 `v1.2.4`），同步到本域 Harbor 为 `<IMAGE_REPOSITORY>/kube-vip:v<ver>`；**没有 Helm、没有 cloud-provider、没有额外守护进程**。
 
 **安装方式**：本仓**手写 static Pod 清单**（官方已不再附带发布二进制，故不用 `kube-vip manifest` CLI；也**不是 `kubectl apply`/Helm**），直接放到 kubelet 静态 Pod 目录。因用 `admin.conf`（cluster-admin）作 kubeconfig，**无需 RBAC**。
 
@@ -247,6 +247,8 @@ kube-vip 是 **Go 单二进制/容器**，直接操作宿主内核网络。其�
 ⑥ 升级 改 KUBE_VIP_VERSION 后重跑 setup-kube-vip.sh（清单更新）
 ```
 `imagePullPolicy: IfNotPresent` → 依赖预载，避免回源公网。
+
+> **升级注意（版本迁移）**：kube-vip v1.x 相对 v0.8.x 有 env 变化——**`vip_cidr` 已移除，改用 `vip_subnet`**（本仓清单已同步）。跨小版本升级建议按官方“regenerate the manifest”方式重生成清单、逐控制面滚动替换静态 Pod 后观察 VIP 漂移；升级前先 `make acr-prepare/image-load` 预载新镜像。
 
 ### 5.10 kube-vip vs keepalived（为何本仓不用 keepalived）
 > 本仓 CP VIP 由 **kube-vip** 持有，**不是 keepalived**。

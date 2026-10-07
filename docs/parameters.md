@@ -39,7 +39,7 @@
 | 变量 | 含义 | 默认 |
 |---|---|---|
 | `K8S_VERSION` | Kubernetes 版本 | `1.31.0` |
-| `CILIUM_VERSION` / `LONGHORN_VERSION` / `KUBE_VIP_VERSION` | 组件版本 | `1.16.0` / `1.7.0` / `0.8.7` |
+| `CILIUM_VERSION` / `LONGHORN_VERSION` / `KUBE_VIP_VERSION` | 组件版本 | `1.16.0` / `1.7.0` / `1.2.4` |
 | `CNPG_VERSION` / `REDIS_OP_VERSION` | 数据 Operator | `1.25.1` / `0.17.0` |
 | `FLUX_OPERATOR_VERSION` | Flux Operator chart/镜像 | `0.61.0` |
 

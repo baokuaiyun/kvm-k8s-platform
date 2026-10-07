@@ -25,7 +25,7 @@ ACR(源) ──skopeo──> 宿主机 tar(本域名) ──scp/ctr──> 各�
   `kube-apiserver`、`kube-controller-manager`、`kube-scheduler`、`kube-proxy`、`coredns`、`etcd`、`pause`
   > 注意 kubeadm 会把 coredns 压平为 `<repo>/coredns`，**不是** `<repo>/coredns/coredns`。
 - **平台 / Helm（全路径 `/` 换 `.`）**：`quay.io/cilium/cilium` → `<本域>/quay.cilium.cilium:v1.16.0`
-- kube-vip：`<本域>/kube-vip:v0.8.7`（并改写静态 Pod 清单镜像）
+- kube-vip：`<本域>/kube-vip:v<KUBE_VIP_VERSION>`（默认 `v1.2.4`；并改写静态 Pod 清单镜像）
 
 ## 三、变量与凭据
 

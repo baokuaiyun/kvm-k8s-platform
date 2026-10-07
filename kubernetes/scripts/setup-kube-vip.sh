@@ -6,7 +6,7 @@
 set -euo pipefail
 
 VIP="${CP_VIP:-192.168.124.30}"
-KV_VERSION="${KUBE_VIP_VERSION:-0.8.7}"
+KV_VERSION="${KUBE_VIP_VERSION:-1.2.4}"
 IFACE="${VIP_IFACE:-}"
 CP_INIT="${CP_INIT_COUNT:-1}"
 IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-}"
@@ -64,7 +64,8 @@ spec:
         - { name: vip_arp,          value: "true" }
         - { name: port,             value: "6443" }
         - { name: vip_interface,    value: "${IFACE}" }
-        - { name: vip_cidr,         value: "32" }
+        # 注意: v1.x 已移除 vip_cidr，统一用 vip_subnet
+        - { name: vip_subnet,       value: "32" }
         - { name: cp_enable,        value: "true" }
         - { name: cp_namespace,     value: "kube-system" }
         - { name: vip_leaderelection, value: "${VIP_LEADERELECTION:-true}" }

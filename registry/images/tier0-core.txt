@@ -8,7 +8,7 @@ registry.k8s.io/kube-proxy:v1.31.0                  kube-proxy                  
 registry.k8s.io/coredns/coredns:v1.11.1             coredns                     Tier0
 registry.k8s.io/etcd:3.5.15-0                       etcd                        Tier0
 registry.k8s.io/pause:3.10                          pause                       Tier0
-ghcr.io/kube-vip/kube-vip:v0.8.7                    kube-vip                    Tier0
+ghcr.io/kube-vip/kube-vip:v1.2.4                    kube-vip                    Tier0
 quay.io/cilium/cilium:v1.16.0                       quay.cilium.cilium          Tier0
 quay.io/cilium/cilium-envoy:v1.29.7-39a2a56bbd5b3a591f69dbca51d3e30ef97e0e51 quay.cilium.cilium-envoy Tier0
 quay.io/cilium/operator-generic:v1.16.0             quay.cilium.operator-generic Tier0
