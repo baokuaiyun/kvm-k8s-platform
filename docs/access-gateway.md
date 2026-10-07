@@ -61,7 +61,12 @@ kubectl apply -f platform/gateway/harbor-route.yaml
 
 ```bash
 curl -kI https://harbor.test.baokuaiyun.com            # 200/302
-kubectl get gateway,httproute -A
+# 不依赖 DNS：强制解析到 GATEWAY_VIP（drill 示例 192.168.1.235）
+curl -k --resolve harbor.test.baokuaiyun.com:443:<GATEWAY_VIP> https://harbor.test.baokuaiyun.com/
+kubectl -n gateway get gateway gateway                 # ADDRESS=GATEWAY_VIP, PROGRAMMED=True
+kubectl get httproute -A
 kubectl get certificate -A                             # wildcard Ready=True
 ssh <node> 'crictl pull <harbor>/baokuaiyun/<img>:<tag>'
 ```
+
+> **必须用域名（带 SNI）**：Gateway 是虚拟主机 TLS，裸 IP `curl -k https://<GATEWAY_VIP>/` 会被 reset；`ping <GATEWAY_VIP>` 不通属正常（LB VIP 不回 ICMP）。详见 [`network-verification.md`](network-verification.md) 第 6 节。

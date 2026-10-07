@@ -117,6 +117,19 @@ metadata: { annotations: { "io.cilium/lb-ipam-ips": "192.168.1.245" } }
 | DNS | 平台域名 → `GATEWAY_VIP` | 需 DNS 用固定 IP，否则按 IP 用 |
 | 验证 | `make verify-network TARGET=lb`（6a L7） | 同（6b L4） |
 
+### 访问与验证方式（重要）
+- **必须带 SNI**（Gateway 是虚拟主机 TLS，listener 绑 `*.test.baokuaiyun.com`）——用**域名**或 `--resolve`：
+  ```bash
+  curl -k https://harbor.test.baokuaiyun.com/                                     # 域名（DNS 指向 GATEWAY_VIP）
+  curl -k --resolve harbor.test.baokuaiyun.com:443:<GATEWAY_VIP> https://harbor.test.baokuaiyun.com/
+  openssl s_client -connect <GATEWAY_VIP>:443 -servername harbor.test.baokuaiyun.com
+  ```
+  > drill 实际：`<GATEWAY_VIP>` = `192.168.1.235`。
+- **裸 IP 不走**：`curl -k https://<GATEWAY_VIP>/` 会 `Connection reset`（无 SNI）；`-H 'Host:'` 不等于 SNI。
+- **ping 不通**：LB VIP 是 Service 前端，Cilium L2/eBPF **只做 TCP/UDP、不回 ICMP**；健康检查用 TCP/HTTP。
+- 若需**裸 IP 可访问 / 可 ping**：见本节“无 SNI 默认 listener / 宿主副 IP+DNAT / kube-vip 服务模式”方案。
+- 一键核对：`make verify-network`（6a 带 SNI 探测 L7；6b 列 L4 池 EXTERNAL-IP）。详见 [`network-verification.md`](network-verification.md)。
+
 ## 九、落地步骤（KVM）
 ```
 1) 探测 LAN（避开 DHCP/已用）→ 选业务段

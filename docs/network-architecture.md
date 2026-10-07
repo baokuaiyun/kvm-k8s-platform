@@ -473,6 +473,7 @@ CP 端点: kube-vip(ARP/BGP)  服务 LB: Cilium L2/BGP  外网: 公网 LB/DNAT
 6. **统一用 Cilium 可行吗？** KVM/裸机可统一 Cilium（L2/BGP）；云上只能 CCM/SLB。**契约统一，实现分环境**。
 7. **`type=LoadBalancer` 一直 pending？** 未部署服务 LB 实现（Cilium LB IPAM/MetalLB/kube-vip svc），或云上未装 CCM。
 8. **Pod 和 Service 网络是一回事吗？** 不是：Pod 是真实 IP（`10.244/16`），Service 是虚拟 IP（`10.96/12`），见第三节。
+9. **为什么 `ping <GATEWAY_VIP>` 不通、裸 IP `curl https://<GATEWAY_VIP>/` 被 reset？** 前者：LB VIP 是 Service 前端，Cilium/k8s **只做 TCP/UDP、不回 ICMP**（用 TCP/HTTP 探测）；后者：Gateway 是**虚拟主机 TLS**，**必须带 SNI**（用域名或 `--resolve`）。正确姿势见 [`network-verification.md`](network-verification.md) 第 6 节。需裸 IP/ping 见 [`service-ip-design.md`](service-ip-design.md)。
 
 ---
 

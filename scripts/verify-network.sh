@@ -183,6 +183,8 @@ check_lb() {
   else
     # 用平台域名 + SNI（虚拟主机），裸 IP 无 SNI 会被网关重置
     l7host="${HARBOR_HOST:-harbor.$DOMAIN}"
+    echo "       验证命令: curl -k --resolve ${l7host}:443:${GATEWAY_VIP} https://${l7host}/"
+    echo "       提示: 裸 IP 会被 reset（需 SNI）；ping ${GATEWAY_VIP} 不通属正常（VIP 不回 ICMP）"
     if have curl && curl -k -sI --max-time 5 --resolve "${l7host}:443:${GATEWAY_VIP}" "https://${l7host}/" >/dev/null 2>&1; then
       ok "L7 入口 https://${GATEWAY_VIP}（Host:${l7host}）有响应"
     else
