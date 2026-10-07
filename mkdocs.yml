@@ -76,6 +76,7 @@ nav:
   - 镜像管道(本域 Harbor): image-pipeline.md
   - 网络架构与 LB 设计: network-architecture.md
   - 网络验证(工具/教程): network-verification.md
+  - 服务/业务 IP 设计(固定入口+按需池): service-ip-design.md
   - 生产同构入口(Gateway): access-gateway.md
   - Helm Chart 分发: helm-chart-distribution.md
   - ACR 镜像同步(旧): acr-image-sync.md

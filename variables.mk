@@ -359,6 +359,33 @@ LB_ANNOUNCE    ?= l2
 # loadBalancerClass（多后端共存/切换；空=默认实现）
 LB_CLASS       ?=
 
+# ============ 业务网（双网卡 / D 方案：平台入口固定 IP + 业务按需 IP 池） ============
+# 两个功能：
+#   ① 平台入口 L7 共享固定 IP（Harbor/GitLab/... 共用一个，DNS 指向它）
+#   ② 其它业务请求 IP 管理（LB 池，Service type=LoadBalancer 按需自动分配）
+# 基础设施：业务网需对客户端可达 —— KVM=桥接 eno1 的 br-lan；云=业务 vSwitch/ENI；裸机=VLAN/桥接
+# 开关 NET_BIZ_ENABLED: 0=沿用管理网地址（当前单网段，兼容现状）；1=切到业务网（需先建好 br-lan）
+NET_BIZ_ENABLED   ?= 0
+NET_BIZ_NAME      ?= br-lan
+NET_BIZ_CIDR      ?= 192.168.1.0/24
+NET_BIZ_GATEWAY   ?= 192.168.1.1
+# 节点双网卡（VM 内网卡名）：管理网 / 业务网
+MGMT_IFACE        ?= enp1s0
+BIZ_IFACE         ?= enp2s0
+# 宿主机侧业务网桥（KVM）
+BIZ_HOST_IFACE    ?= br-lan
+# 节点业务网副 IP（静态；Cilium L2 宣告用）
+LAN_NODE_IPS      ?= 192.168.1.230 192.168.1.231 192.168.1.232 192.168.1.233 192.168.1.234
+# 业务网上的“平台入口固定 IP”与“业务池”
+BIZ_GATEWAY_VIP   ?= 192.168.1.235
+BIZ_LB_POOL_START ?= 192.168.1.240
+BIZ_LB_POOL_END   ?= 192.168.1.249
+# -- 生效值（供渲染消费，避免各处重复判断）--
+EFF_GATEWAY_VIP   ?= $(if $(filter 1,$(NET_BIZ_ENABLED)),$(BIZ_GATEWAY_VIP),$(GATEWAY_VIP))
+EFF_LB_POOL_START ?= $(if $(filter 1,$(NET_BIZ_ENABLED)),$(BIZ_LB_POOL_START),$(LB_POOL_START))
+EFF_LB_POOL_END   ?= $(if $(filter 1,$(NET_BIZ_ENABLED)),$(BIZ_LB_POOL_END),$(LB_POOL_END))
+EFF_BIZ_IFACE     ?= $(if $(filter 1,$(NET_BIZ_ENABLED)),$(BIZ_IFACE),$(VIP_IFACE))
+
 # ============ Git (GitOps) ============
 GIT_OWNER := baokuaiyun
 GIT_REPO  := k8s-gitops
@@ -375,6 +402,9 @@ export WK_NAMES WK_IPS WK_MACS WK_INIT_COUNT
 export CP_VIP CP_ENDPOINT CP_ENDPOINT_PORT VIP_IFACE K8S_CONTEXT
 export POD_CIDR SERVICE_CIDR
 export NODE_IP_MODE LB_IP_MODE LB_POOL_START LB_POOL_END GATEWAY_VIP LB_ANNOUNCE LB_CLASS
+export NET_BIZ_ENABLED NET_BIZ_NAME NET_BIZ_CIDR NET_BIZ_GATEWAY MGMT_IFACE BIZ_IFACE BIZ_HOST_IFACE LAN_NODE_IPS
+export BIZ_GATEWAY_VIP BIZ_LB_POOL_START BIZ_LB_POOL_END
+export EFF_GATEWAY_VIP EFF_LB_POOL_START EFF_LB_POOL_END EFF_BIZ_IFACE
 export K8S_VERSION K8S_MINOR K8S_APT_REPO_URL KUBE_VIP_VERSION
 export DOMAIN HARBOR_HOST HARBOR_PROJECT LONGHORN_REPLICAS
 export HARBOR_USER HARBOR_PASS HARBOR_ADMIN_PASS HARBOR_ROBOT_USER HARBOR_ROBOT_PASS HELM_OCI_REPO

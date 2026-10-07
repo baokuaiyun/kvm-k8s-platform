@@ -39,6 +39,7 @@ make rebuild       # 删除→重建→平台可用（保留宿主存储）
 - `docs/implementation-playbook.md` — 本机 KVM 四阶段实施手册
 - `docs/network-architecture.md` — 网络架构与 LB 设计（分层/路径/三环境差异）
 - `docs/network-verification.md` — 网络验证工具与教程（`make verify-network`）
+- `docs/service-ip-design.md` — 服务/业务 IP 设计（平台入口固定 IP + 业务按需池，三环境对比）
 - `docs/environment-differences.md` — 本机 vs 阿里云环境差异
 - `docs/alicloud-deployment.md` — 阿里云生产部署（多 ECS + CCM/SLB）
 - `docs/baokuaiyun-domain-migration.md` — 域名/证书/镜像迁移

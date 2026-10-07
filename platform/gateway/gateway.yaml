@@ -5,9 +5,10 @@ metadata:
   namespace: gateway
 spec:
   gatewayClassName: kgateway
+  # 功能①：平台入口 L7 共享固定 IP（由 up-core.sh 用 EFF_GATEWAY_VIP 渲染 __GATEWAY_VIP__）
   addresses:
     - type: IPAddress
-      value: 192.168.124.30
+      value: __GATEWAY_VIP__
   listeners:
     - name: https
       protocol: HTTPS

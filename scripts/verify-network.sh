@@ -15,11 +15,17 @@ NET_CIDR="${NET_CIDR:-192.168.124.0/24}"
 CP_VIP="${CP_VIP:-192.168.124.30}"
 CP_ENDPOINT="${CP_ENDPOINT:-k8s-api.test.baokuaiyun.com}"
 CP_ENDPOINT_PORT="${CP_ENDPOINT_PORT:-6443}"
-VIP_IFACE="${VIP_IFACE:-}"
-GATEWAY_VIP="${GATEWAY_VIP:-}"
+VIP_IFACE="${VIP_IFACE:-enp1s0}"
+GATEWAY_VIP="${EFF_GATEWAY_VIP:-${GATEWAY_VIP:-192.168.124.31}}"
 LB_IP_MODE="${LB_IP_MODE:-cilium-l2}"
 LB_ANNOUNCE="${LB_ANNOUNCE:-l2}"
 NODE_IP_MODE="${NODE_IP_MODE:-static}"
+NET_BIZ_ENABLED="${NET_BIZ_ENABLED:-0}"
+LB_POOL_START="${LB_POOL_START:-192.168.124.40}"
+LB_POOL_END="${LB_POOL_END:-192.168.124.79}"
+EFF_LB_POOL_START="${EFF_LB_POOL_START:-$LB_POOL_START}"
+EFF_LB_POOL_END="${EFF_LB_POOL_END:-$LB_POOL_END}"
+EFF_BIZ_IFACE="${EFF_BIZ_IFACE:-$VIP_IFACE}"
 DOMAIN="${DOMAIN:-test.baokuaiyun.com}"
 HARBOR_HOST="${HARBOR_HOST:-harbor.$DOMAIN}"
 POD_CIDR="${POD_CIDR:-10.244.0.0/16}"
@@ -40,6 +46,7 @@ echo "=================================================================="
 echo " 网络平面验收  ENV=$ENV"
 echo "   网段=$NET_CIDR 网关=$NET_GATEWAY CP_VIP=$CP_VIP 端点=$CP_ENDPOINT:$CP_ENDPOINT_PORT"
 echo "   LB_IP_MODE=$LB_IP_MODE LB_ANNOUNCE=$LB_ANNOUNCE GATEWAY_VIP=${GATEWAY_VIP:-<空>} NODE_IP_MODE=$NODE_IP_MODE"
+echo "   业务网: NET_BIZ_ENABLED=$NET_BIZ_ENABLED 池=${EFF_LB_POOL_START:-?}-${EFF_LB_POOL_END:-?} 业务网卡=${EFF_BIZ_IFACE:-$VIP_IFACE}"
 echo "   Pod_CIDR=$POD_CIDR Service_CIDR=$SERVICE_CIDR  kubectl=$([ $KUBECTL_OK -eq 1 ] && echo 可达 || echo 不可达)"
 echo "=================================================================="
 
@@ -157,25 +164,43 @@ check_svc() {
 
 # ---------------- 6. 服务 LB（LoadBalancer 类型） ----------------
 check_lb() {
-  echo "=== 6. 服务 LB（type=LoadBalancer）==="
+  echo "=== 6. 服务 LB ==="
   if [ "$KUBECTL_OK" -ne 1 ]; then skip "集群不可达，跳过"; return; fi
+
+  # 6a. 功能①：平台入口 L7 共享固定 IP
+  echo "--- 6a. 平台入口 L7 固定 IP（目标 GATEWAY_VIP=${GATEWAY_VIP:-<空>}）---"
+  gwaddr=$(kubectl get gateway -A -o jsonpath='{range .items[*]}{.status.addresses[0].value}{"\n"}{end}' 2>/dev/null | grep -v '^$' | head -1)
+  if [ -z "$GATEWAY_VIP" ]; then
+    warn "GATEWAY_VIP 为空（prod 由 SLB 回写，属正常）"
+  elif [ -z "$gwaddr" ]; then
+    warn "未发现 Gateway 地址（platform/gateway/gateway.yaml 未 apply / 未就绪）"
+  elif [ "$gwaddr" != "$GATEWAY_VIP" ]; then
+    warn "Gateway 实际地址=$gwaddr ≠ 目标=$GATEWAY_VIP（如需迁移：make gateway）"
+  elif have curl && curl -k -sI --max-time 5 "https://${GATEWAY_VIP}/" >/dev/null 2>&1; then
+    ok "L7 入口 https://${GATEWAY_VIP}:443 有响应（Gateway 地址一致）"
+  else
+    bad "L7 入口 https://${GATEWAY_VIP}:443 不可达（Gateway 已声明该 IP 但无响应）"
+  fi
+
+  # 6b. 功能②：业务按需 IP 池（type=LoadBalancer）
+  echo "--- 6b. 业务请求 IP（池 ${EFF_LB_POOL_START:-?}-${EFF_LB_POOL_END:-?}）---"
   lb=$(kubectl get svc -A --no-headers 2>/dev/null | awk '$3=="LoadBalancer"{print $1"/"$2, $5}' || true)
   if [ -z "$lb" ]; then
-    warn "当前无 type=LoadBalancer 的 Service（M2 落 Cilium L2 后应出现）"
-    return
+    warn "当前无 type=LoadBalancer 的 Service（业务按需暴露后出现）"
+  else
+    while read -r name ip; do
+      case "$ip" in
+        *pending*|"") echo "  [FAIL] $name EXTERNAL-IP=pending（LB 实现未生效：LB_IP_MODE=$LB_IP_MODE）" ;;
+        *) echo "  [OK]   $name EXTERNAL-IP=$ip" ;;
+      esac
+    done <<< "$lb"
+    echo "$lb" | grep -q pending && FAIL=1
   fi
-  echo "$lb" | while read -r name ip; do
-    case "$ip" in
-      *pending*|"") echo "  [FAIL] $name EXTERNAL-IP=pending（LB 实现未生效：LB_IP_MODE=$LB_IP_MODE）" ;;
-      *) echo "  [OK]   $name EXTERNAL-IP=$ip" ;;
-    esac
-  done
-  echo "$lb" | grep -q pending && FAIL=1
   if [ "$LB_IP_MODE" = "cilium-l2" ]; then
-    if have cilium; then
-      n=$(cilium lb list 2>/dev/null | grep -c . || true)
-      echo "       cilium LB IP（${n:-0} 条）"; cilium lb list 2>/dev/null | head -5 | sed 's/^/       /' || true
+    if have kubectl; then
+      echo "       池对象: $(kubectl get ciliumloadbalancerippools.cilium.io --no-headers 2>/dev/null | tr '\n' ' ' || true)"
     fi
+    have cilium && { cilium lb ipam list 2>/dev/null | head -8 | sed 's/^/       /' || true; }
   fi
 }
 

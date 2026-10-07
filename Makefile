@@ -26,7 +26,7 @@ endif
 	acr-prepare image-load image-preflight helm-images charts-pull charts-push-yunxiao charts-push-git yunxiao-repos idp \
 	kvm-init dirs network-create image-download host-storage post-reboot-install \
 	reset-cluster clean-all rebuild rebuild-core purge-host-storage \
-	cni storage storage-longhorn csi-storage csi-preload storage-class cert security monitoring agents alerts alerts-print alert-adapter platform harbor gitlab platform-data gitops flux-operator tenants operators images \
+	cni storage storage-longhorn csi-storage csi-preload storage-class cert gateway security monitoring agents alerts alerts-print alert-adapter platform harbor gitlab platform-data gitops flux-operator tenants operators images \
 	resolve-artifacts sync-artifacts publish-artifacts verify-bootstrap mgmt-bootstrap member-bootstrap \
 	build-component render-stack drill-expand-pvc auto-expand auto-expand-once \
 	backup-upgrade velero verify-cluster verify-monitoring verify-apps verify-storage verify-network evidence app-backup app-restore tf-init tf-plan tf-apply tf-fmt tf-validate repo-split \
@@ -237,6 +237,13 @@ cni: ## 安装 Cilium CNI
 	helm upgrade --install cilium $(HELM_CILIUM) -n kube-system \
 		-f /tmp/cilium-values.yaml \
 		$(if $(filter 1,$(SINGLE_NODE_SPEC)),--set operator.replicas=1,)
+	@if [ "$${LB_IP_MODE:-cilium-l2}" = "cilium-l2" ]; then \
+		echo "[+] 下发业务 LB 池 + L2 公告（功能②：池 $${EFF_LB_POOL_START:-?}-$${EFF_LB_POOL_END:-?}，网卡 $${EFF_BIZ_IFACE:-?}）..."; \
+		envsubst '$${EFF_LB_POOL_START} $${EFF_LB_POOL_END} $${EFF_BIZ_IFACE}' \
+			< kubernetes/configs/lb-ipam.yaml | kubectl apply -f - ; \
+	else \
+		echo "[=] LB_IP_MODE=$${LB_IP_MODE:-}，跳过 Cilium LB IPAM 下发"; \
+	fi
 
 storage: ## 安装存储后端（按 STORAGE_BACKEND：host-zfs-iscsi|longhorn|alicloud）
 	@echo "[+] 安装存储后端（backend=$(STORAGE_BACKEND)）..."
@@ -281,6 +288,10 @@ cert: ## 安装 cert-manager
 	sed 's|__IMAGE_REPOSITORY__|$(IMAGE_REPOSITORY)|g' kubernetes/configs/cert-manager-values.yaml > /tmp/cert-manager-values.yaml
 	helm upgrade --install cert-manager $(HELM_CERTMGR) \
 		-n cert-manager --create-namespace -f /tmp/cert-manager-values.yaml
+
+gateway: ## 渲染并应用平台入口 Gateway（功能①：固定 L7 共享 IP=$(EFF_GATEWAY_VIP)）
+	@echo "[+] 渲染 Gateway（GATEWAY_VIP=$(EFF_GATEWAY_VIP)）..."
+	sed 's|__GATEWAY_VIP__|$(EFF_GATEWAY_VIP)|g' platform/gateway/gateway.yaml | kubectl apply -f -
 
 ## ============ 阶段 2: 安全监控 ============
 security: ## 安全基线（RBAC/NetworkPolicy/Quota）

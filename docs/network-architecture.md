@@ -4,6 +4,7 @@
 > 关联 [`parameters.md`](parameters.md)、[`access-gateway.md`](access-gateway.md)、[`environment-differences.md`](environment-differences.md)、
 > [`alicloud-deployment.md`](alicloud-deployment.md)、[`implementation-playbook.md`](implementation-playbook.md)。
 > **验证**：网络正确性核对见 [`network-verification.md`](network-verification.md)（`make verify-network`）。
+> **服务/业务 IP**（平台入口固定 IP + 业务按需池、三环境对比）见 [`service-ip-design.md`](service-ip-design.md)。
 >
 > 参数单一真源：[`variables.mk`](../variables.mk)（G 默认）<- [`gitops/profiles/<env>.env`](../gitops/profiles)（P 覆盖，`make ... ENV=<env>`）<- `acr.env`（S 密钥）。
 

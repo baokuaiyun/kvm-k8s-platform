@@ -33,7 +33,21 @@
 
 **地址分区（drill `192.168.124.0/24`）**：`.1` 网关 · `.10-.29` 节点静态 · `.30` CP_VIP(kube-vip 独占) · `.31` GATEWAY_VIP · `.40-.79` LB 池 · `.100-.200` DHCP · `.201-.254` 预留。
 
-> 分层模型、数据路径、三环境差异与双网段规划详见 [`network-architecture.md`](network-architecture.md)。
+> 分层模型、数据路径、三环境差异与双网段规划详见 [`network-architecture.md`](network-architecture.md)；
+> 服务/业务 IP（平台入口固定 + 业务按需）详见 [`service-ip-design.md`](service-ip-design.md)。
+
+## 业务网 / 服务 IP（双网卡 / D 方案）
+> 功能① 平台入口固定 IP；功能② 业务按需池。`NET_BIZ_ENABLED=1` 时启用业务网；生效值 `EFF_*` 自动选择。
+
+| 变量 | 含义 | 默认(drill) | 作用域 |
+|---|---|---|---|
+| `NET_BIZ_ENABLED` | 启用业务网（0=沿用管理网） | `0` | G/P |
+| `NET_BIZ_NAME` / `NET_BIZ_CIDR` / `NET_BIZ_GATEWAY` | 业务网名/网段/网关 | `br-lan` / `192.168.1.0/24` / `.1` | G/P |
+| `MGMT_IFACE` / `BIZ_IFACE` | 节点双网卡 | `enp1s0` / `enp2s0` | G/P |
+| `BIZ_HOST_IFACE` | 宿主业务网桥 | `br-lan` | G |
+| `LAN_NODE_IPS` | 节点业务网副 IP | `192.168.1.230-234` | G/P |
+| `BIZ_GATEWAY_VIP` / `BIZ_LB_POOL_START/END` | 业务网上的①固定入口/②池 | `.235` / `.240-.249` | G/P |
+| `EFF_GATEWAY_VIP` / `EFF_LB_POOL_*` / `EFF_BIZ_IFACE` | 生效值（按开关选择） | — | G |
 
 ## 版本
 | 变量 | 含义 | 默认 |

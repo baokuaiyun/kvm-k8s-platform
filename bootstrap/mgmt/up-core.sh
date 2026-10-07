@@ -19,5 +19,7 @@ log "自签 Issuer/通配证书 + Gateway（platform/gateway）"
 kubectl apply -f "$BOOT_ROOT/platform/gateway/namespace.yaml" 2>/dev/null || true
 kubectl apply -f "$BOOT_ROOT/platform/gateway/selfsigned-issuer.yaml" 2>/dev/null || true
 kubectl apply -f "$BOOT_ROOT/platform/gateway/wildcard-cert.yaml" 2>/dev/null || true
-kubectl apply -f "$BOOT_ROOT/platform/gateway/gateway.yaml" 2>/dev/null || true
+# 功能①：渲染平台入口 L7 共享固定 IP（EFF_GATEWAY_VIP）
+sed "s|__GATEWAY_VIP__|${EFF_GATEWAY_VIP:-${GATEWAY_VIP:-192.168.124.31}}|g" \
+  "$BOOT_ROOT/platform/gateway/gateway.yaml" | kubectl apply -f - 2>/dev/null || true
 log "核心就绪"
