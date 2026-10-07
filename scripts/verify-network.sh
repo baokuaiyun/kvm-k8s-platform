@@ -5,6 +5,10 @@
 # 关联文档: docs/network-verification.md / docs/network-architecture.md
 set -uo pipefail
 
+# 本地/内网直连：绕过宿主代理（避免 https_proxy 干扰 VIP/入口探测）
+export no_proxy='*' NO_PROXY='*'
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY 2>/dev/null || true
+
 TARGET="${1:-all}"
 
 # ---- 参数（来自 variables.mk/profile 的导出；均给默认值）----
@@ -176,10 +180,14 @@ check_lb() {
     warn "未发现 Gateway 地址（platform/gateway/gateway.yaml 未 apply / 未就绪）"
   elif [ "$gwaddr" != "$GATEWAY_VIP" ]; then
     warn "Gateway 实际地址=$gwaddr ≠ 目标=$GATEWAY_VIP（如需迁移：make gateway）"
-  elif have curl && curl -k -sI --max-time 5 "https://${GATEWAY_VIP}/" >/dev/null 2>&1; then
-    ok "L7 入口 https://${GATEWAY_VIP}:443 有响应（Gateway 地址一致）"
   else
-    bad "L7 入口 https://${GATEWAY_VIP}:443 不可达（Gateway 已声明该 IP 但无响应）"
+    # 用平台域名 + SNI（虚拟主机），裸 IP 无 SNI 会被网关重置
+    l7host="${HARBOR_HOST:-harbor.$DOMAIN}"
+    if have curl && curl -k -sI --max-time 5 --resolve "${l7host}:443:${GATEWAY_VIP}" "https://${l7host}/" >/dev/null 2>&1; then
+      ok "L7 入口 https://${GATEWAY_VIP}（Host:${l7host}）有响应"
+    else
+      bad "L7 入口 https://${GATEWAY_VIP} 不可达（SNI=${l7host}；检查 Gateway/证书/路由）"
+    fi
   fi
 
   # 6b. 功能②：业务按需 IP 池（type=LoadBalancer）

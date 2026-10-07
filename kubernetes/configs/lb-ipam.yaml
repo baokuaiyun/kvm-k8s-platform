@@ -1,7 +1,23 @@
-# 业务按需 IP 池（功能②）：Cilium LB IPAM + L2 公告
-#   渲染: make cni（自动 envsubst 替换 EFF_LB_POOL_START / EFF_LB_POOL_END / EFF_BIZ_IFACE）
+# 业务 IP 池（Cilium LB IPAM + L2 公告）
+#   渲染: make cni（自动 envsubst 替换 EFF_GATEWAY_VIP / EFF_LB_POOL_START / EFF_LB_POOL_END / EFF_BIZ_IFACE）
 #   前提: Cilium 需开启 l2announcements.enabled=true（见 cilium-values.yaml）
-#   说明: Service type=LoadBalancer 默认从池【按需自动分配】IP；固定用注解 io.cilium/lb-ipam-ips
+#   两个池通过 serviceSelector 区分：
+#     - platform-entry: 平台入口固定 IP（Gateway 生成的 LB Service 带 gateway-name 标签）→ 固定地址
+#     - biz-pool:       其它业务按需分配（无该标签）→ 从池中【按需自动分配】
+#   固定单个业务: 注解 io.cilium/lb-ipam-ips: <池内地址>
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: platform-entry
+spec:
+  blocks:
+    - start: ${EFF_GATEWAY_VIP}
+      stop: ${EFF_GATEWAY_VIP}
+  serviceSelector:
+    matchExpressions:
+      - key: gateway.networking.k8s.io/gateway-name
+        operator: Exists
+---
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
 metadata:
@@ -10,6 +26,10 @@ spec:
   blocks:
     - start: ${EFF_LB_POOL_START}
       stop: ${EFF_LB_POOL_END}
+  serviceSelector:
+    matchExpressions:
+      - key: gateway.networking.k8s.io/gateway-name
+        operator: DoesNotExist
 ---
 apiVersion: cilium.io/v2alpha1
 kind: CiliumL2AnnouncementPolicy

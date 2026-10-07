@@ -55,11 +55,26 @@
 - 所有平台域名解析到它，Gateway 按 hostname 路由。
 - 操作：`make gateway`（渲染+apply）；新增平台服务只需加 `HTTPRoute`，**不消耗新 IP**。
 
+**实现机制（drill 已验证）**：kgateway 为 Gateway 生成一个 `type=LoadBalancer` 的代理 Service，标签含 `gateway.networking.k8s.io/gateway-name=<gw>`，并采纳 `addresses` 写入 `spec.loadBalancerIP`。配套一个**专用池 `platform-entry`**（`serviceSelector` 命中该标签），故其地址被**固定**为 `GATEWAY_VIP`，不被业务池占用。
+
+```yaml
+# lb-ipam.yaml 片段
+kind: CiliumLoadBalancerIPPool
+metadata: { name: platform-entry }
+spec:
+  blocks: [{ start: <GATEWAY_VIP>, stop: <GATEWAY_VIP> }]
+  serviceSelector:
+    matchExpressions: [{ key: gateway.networking.k8s.io/gateway-name, operator: Exists }]
+```
+
 ## 六、功能②：业务请求 IP 管理（L4）
 
-- 池（`CiliumLoadBalancerIPPool`，见 `kubernetes/configs/lb-ipam.yaml`）+ L2 公告（`CiliumL2AnnouncementPolicy`）。
+- 池 `biz-pool`（`CiliumLoadBalancerIPPool`，见 `kubernetes/configs/lb-ipam.yaml`）+ L2 公告（`CiliumL2AnnouncementPolicy`）。
+  其 `serviceSelector` **排除** `gateway.networking.k8s.io/gateway-name` 标签（即排除平台入口，只服务业务）。
 - **自动（默认）**：建 `type=LoadBalancer` Service → IPAM **按需分配**，删即回收。
-- **固定（可选）**：注解 `io.cilium/lb-ipam-ips: 192.168.1.24x`（drill）；云上绑 EIP / 固定 SLB。
+- **固定（可选）**：注解 `io.cilium/lb-ipam-ips: <池内地址>`（drill）；云上绑 EIP / 固定 SLB。
+
+> **两个池用 serviceSelector 区分**：`platform-entry`（命中 Gateway 标签）固定 `.31`；`biz-pool`（排除该标签）按需分配。这样“固定入口”与“按需业务池”互不干扰、各自可参数化。
 
 ```yaml
 # 自动（默认）
@@ -111,6 +126,11 @@ metadata: { annotations: { "io.cilium/lb-ipam-ips": "192.168.1.245" } }
 5) DNS 指向 GATEWAY_VIP；make verify-network
 ```
 > 云上：建业务 vSwitch/辅助 ENI + 装 CCM；① 用固定 EIP/SLB，② 用按需 SLB。裸机：VLAN/桥接 + Cilium L2（或 BGP）。
+
+**已在 drill 单网段验证（`NET_BIZ_ENABLED=0`）**：
+- 功能①：Gateway 固定 `192.168.124.31`，`curl -k --resolve harbor.test.baokuaiyun.com:443:192.168.124.31 https://harbor.test.baokuaiyun.com/` → 200。
+- 功能②：`net-test/web` 自动分配 `192.168.124.40`，ARP→节点、`curl http://192.168.124.40/` → 200。
+- 校验：`make verify-network`（6a L7 固定入口 / 6b 业务按需池）。
 
 ## 十、风险
 - 切桥断网（需带外控制）；**业务 IP 必须避开 LAN DHCP/已用**；业务网卡**勿设默认路由**（出网仍走管理网 NAT）；云商 ARP 抑制 → 云上不能 Cilium L2。

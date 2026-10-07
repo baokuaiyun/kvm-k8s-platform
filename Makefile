@@ -239,7 +239,7 @@ cni: ## 安装 Cilium CNI
 		$(if $(filter 1,$(SINGLE_NODE_SPEC)),--set operator.replicas=1,)
 	@if [ "$${LB_IP_MODE:-cilium-l2}" = "cilium-l2" ]; then \
 		echo "[+] 下发业务 LB 池 + L2 公告（功能②：池 $${EFF_LB_POOL_START:-?}-$${EFF_LB_POOL_END:-?}，网卡 $${EFF_BIZ_IFACE:-?}）..."; \
-		envsubst '$${EFF_LB_POOL_START} $${EFF_LB_POOL_END} $${EFF_BIZ_IFACE}' \
+		envsubst '$${EFF_GATEWAY_VIP} $${EFF_LB_POOL_START} $${EFF_LB_POOL_END} $${EFF_BIZ_IFACE}' \
 			< kubernetes/configs/lb-ipam.yaml | kubectl apply -f - ; \
 	else \
 		echo "[=] LB_IP_MODE=$${LB_IP_MODE:-}，跳过 Cilium LB IPAM 下发"; \
