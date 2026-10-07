@@ -2,7 +2,7 @@
 # chart: harbor/harbor 1.15.0 (app 2.11.0)
 # __占位__ 由 Makefile harbor 目标用 sed 注入
 externalURL: https://__HARBOR_HOST__
-harborAdminPassword: __HARBOR_PASS__
+harborAdminPassword: __HARBOR_ADMIN_PASS__
 
 expose:
   type: clusterIP

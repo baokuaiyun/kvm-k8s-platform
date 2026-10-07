@@ -330,8 +330,9 @@ CLUSTER_TYPE          ?= all
 # 单项目私有；凭据在 acr.env（可覆盖）
 HARBOR_PROJECT     ?= baokuaiyun
 HARBOR_USER        ?= admin
-HARBOR_PASS        ?= admin123
-HARBOR_ADMIN_PASS  ?= $(HARBOR_PASS)
+# 管理员密码：规范变量 HARBOR_ADMIN_PASS；HARBOR_PASS 为兼容别名（两者自动同步，任设其一即可）
+HARBOR_ADMIN_PASS  ?= $(if $(HARBOR_PASS),$(HARBOR_PASS),admin123)
+HARBOR_PASS        ?= $(HARBOR_ADMIN_PASS)
 HARBOR_ROBOT_USER  ?= robot$$$(HARBOR_PROJECT)+pushpull
 HARBOR_ROBOT_PASS  ?= changeme-robot
 # Harbor 作为 OCI Helm chart 源

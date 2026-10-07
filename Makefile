@@ -26,7 +26,7 @@ endif
 	acr-prepare image-load image-preflight helm-images charts-pull charts-push-yunxiao charts-push-git yunxiao-repos idp \
 	kvm-init dirs network-create image-download host-storage post-reboot-install \
 	reset-cluster clean-all rebuild rebuild-core purge-host-storage \
-	cni storage storage-longhorn csi-storage csi-preload storage-class cert gateway security monitoring agents alerts alerts-print alert-adapter platform harbor gitlab platform-data gitops flux-operator tenants operators images \
+	cni storage storage-longhorn csi-storage csi-preload storage-class cert gateway security monitoring agents alerts alerts-print alert-adapter platform harbor harbor-admin-info harbor-rotate-admin gitlab platform-data gitops flux-operator tenants operators images \
 	resolve-artifacts sync-artifacts publish-artifacts verify-bootstrap mgmt-bootstrap member-bootstrap \
 	build-component render-stack drill-expand-pvc auto-expand auto-expand-once \
 	backup-upgrade velero verify-cluster verify-monitoring verify-apps verify-storage verify-network evidence app-backup app-restore tf-init tf-plan tf-apply tf-fmt tf-validate repo-split \
@@ -366,7 +366,7 @@ harbor: ## 安装 Harbor（外部 PG/Redis 指向 platform-data）
 	helm repo update >/dev/null 2>&1 || true
 	sed -e 's|__IMAGE_REPOSITORY__|$(IMAGE_REPOSITORY)|g' \
 	    -e 's|__HARBOR_HOST__|$(HARBOR_HOST)|g' \
-	    -e 's|__HARBOR_PASS__|$(HARBOR_PASS)|g' \
+	    -e 's|__HARBOR_ADMIN_PASS__|$(HARBOR_ADMIN_PASS)|g' \
 	    -e 's|__PG_HOST__|platform-pg-rw.$(PLATFORM_DATA_NS).svc.cluster.local|g' \
 	    -e 's|__REDIS_HOST__|platform-redis.$(PLATFORM_DATA_NS).svc.cluster.local|g' \
 	    -e 's|__PG_HARBOR_PASS__|$(PG_HARBOR_PASS)|g' \
@@ -377,6 +377,17 @@ harbor: ## 安装 Harbor（外部 PG/Redis 指向 platform-data）
 	    -e 's|__HARBOR_TRIVY_SIZE__|$(HARBOR_TRIVY_SIZE)|g' \
 	    kubernetes/configs/harbor-values.yaml > /tmp/harbor-values.yaml
 	helm upgrade --install harbor $(HELM_HARBOR) -n harbor --create-namespace -f /tmp/harbor-values.yaml
+
+harbor-admin-info: ## 显示 Harbor admin 账号与密码来源（不打印明文）
+	@echo "Harbor admin 用户名 : $(HARBOR_USER)"
+	@echo "密码变量(规范/别名) : HARBOR_ADMIN_PASS / HARBOR_PASS"
+	@echo "来源(S 层)          : acr.env   —— 读取: grep -E '^HARBOR_(ADMIN_)?PASS' acr.env"
+	@echo "集群内读取          : kubectl -n harbor get secret harbor-core -o jsonpath='{.data.HARBOR_ADMIN_PASSWORD}' | base64 -d"
+
+harbor-rotate-admin: ## 轮换 Harbor admin 密码: make harbor-rotate-admin HARBOR_ADMIN_CURRENT=<旧> [HARBOR_ADMIN_NEW=<新>]
+	@echo "[+] 轮换 Harbor admin 密码（新密码留空则随机，成功后写回 acr.env）..."
+	HARBOR_ADMIN_CURRENT='$(HARBOR_ADMIN_CURRENT)' HARBOR_ADMIN_NEW='$(HARBOR_ADMIN_NEW)' \
+		bash registry/harbor-rotate-admin.sh
 
 gitlab: ## 安装 GitLab（外部 PG/Redis/对象存储；对象存储见 GITLAB_OBJECT_STORE）
 	@echo "[+] 安装 GitLab（外部依赖 platform-data，对象存储=$(GITLAB_OBJECT_STORE)）..."

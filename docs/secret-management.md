@@ -9,7 +9,8 @@
 |---|---|---|
 | PG 角色密码 | `PG_HARBOR_PASS` / `PG_GITLAB_PASS` / `PG_CASDOOR_PASS` | CNPG managed.roles |
 | Redis 密码 | `REDIS_PASS` | platform-redis |
-| Harbor admin | `HARBOR_PASS` | Harbor |
+| Harbor admin | `HARBOR_ADMIN_PASS`（别名 `HARBOR_PASS`，两者同步） | Harbor（`harborAdminPassword`） |
+| Harbor robot | `HARBOR_ROBOT_USER` / `HARBOR_ROBOT_PASS` | CI 推拉镜像 |
 | ACR 凭据 | `ACR_USER` / `ACR_PASS` | 镜像同步 |
 | 云 AK/SK | `ALIYUN_ACCESS_KEY` / `ALIYUN_SECRET_KEY`（`S3_ACCESS_KEY`/`S3_SECRET_KEY`） | OSS、DNS、云盘、Velero |
 | Longhorn 备份 | `LONGHORN_ACCESS_KEY` / `LONGHORN_SECRET_KEY` | backupTarget S3 |
@@ -82,3 +83,21 @@ spec:
 2. 部署 Sealed-Secrets 或 External-Secrets。
 3. 逐个把 `deploy.sh`/values 注入的 Secret 替换为密文清单或 ExternalSecret。
 4. 轮换一次全部凭据，确认无明文残留。
+
+## 六、Harbor admin 凭据与轮换
+
+- **用户名**：`admin`（`HARBOR_USER`）；另有 robot `robot$<project>+pushpull`（CI 推拉）。
+- **密码**：规范变量 `HARBOR_ADMIN_PASS`（别名 `HARBOR_PASS`，两者自动同步）；默认占位 `admin123`，**真实值在 `acr.env`**（S 层）。
+- **注入**：`kubernetes/configs/harbor-values.yaml` 的 `harborAdminPassword: __HARBOR_ADMIN_PASS__`，由 `make harbor` 渲染；**仅首次安装**用于初始化 admin 密码（之后存于 Harbor DB，改 values 不会改已存在密码）。
+- **查看**（避免明文落盘/日志）：
+  ```bash
+  make harbor-admin-info                    # 只显示账号与来源
+  grep -E '^HARBOR_(ADMIN_)?PASS' acr.env   # 源（acr.env，gitignored）
+  kubectl -n harbor get secret harbor-core -o jsonpath='{.data.HARBOR_ADMIN_PASSWORD}' | base64 -d; echo
+  ```
+- **轮换**：
+  ```bash
+  make harbor-rotate-admin HARBOR_ADMIN_CURRENT=<旧密码> [HARBOR_ADMIN_NEW=<新密码>]
+  # 新密码留空则随机生成；成功后写回 acr.env 的 HARBOR_ADMIN_PASS / HARBOR_PASS
+  # 脚本 registry/harbor-rotate-admin.sh：经 kubectl exec harbor-core 调 API，无需对外暴露
+  ```

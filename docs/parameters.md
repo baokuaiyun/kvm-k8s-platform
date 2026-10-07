@@ -68,8 +68,9 @@
 |---|---|---|
 | `HARBOR_PROJECT` | Harbor 单项目 | `baokuaiyun` |
 | `HARBOR_HOST` | 本域 registry | `harbor.test.baokuaiyun.com` |
-| `HARBOR_USER` / `HARBOR_PASS` | admin（应急） | S |
-| `HARBOR_ADMIN_PASS` / `HARBOR_ROBOT_PASS` | admin/robot 密码 | S |
+| `HARBOR_USER` | 管理员用户名（`admin`） | 固定 |
+| `HARBOR_ADMIN_PASS` | 管理员密码（规范名；别名 `HARBOR_PASS` 自动同步） | S |
+| `HARBOR_ROBOT_USER` / `HARBOR_ROBOT_PASS` | robot 推拉账号/密码 | S |
 | `HARBOR_ROBOT_USER` | robot 用户名（脚本内用 `robot$<project>+pushpull` 拼） | `robot$baokuaiyun+pushpull` |
 | `MIRROR_DOCKER/QUAY/GHCR/K8S` | 海外源镜像 | `*.m.daocloud.io` / `ghcr.dockerproxy.net` / `k8s-gcr.m.daocloud.io` |
 | `BYPASS_PROXY` | 海外拉取绕过本机代理 | `1` |
