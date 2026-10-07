@@ -10,13 +10,13 @@ UPL="${BIZ_HOST_UPLINK:-eno1}"
 GW="${NET_BIZ_GATEWAY:-192.168.1.1}"
 HOSTIP="${HOST_LAN_IP:-}"
 
-[ -n "$HOSTIP" ] || HOSTIP="$(ip -o -4 addr show "$UPL" 2>/dev/null | awk '{print $4}' | head -1)"
-[ -n "$HOSTIP" ] || { echo "[!] 无法确定宿主 IP（设 HOST_LAN_IP=192.168.1.251/24）"; exit 2; }
-
 if ip link show "$BR" >/dev/null 2>&1; then
   echo "[=] $BR 已存在，跳过"
   exit 0
 fi
+
+[ -n "$HOSTIP" ] || HOSTIP="$(ip -o -4 addr show "$UPL" 2>/dev/null | awk '{print $4}' | head -1)"
+[ -n "$HOSTIP" ] || { echo "[!] 无法确定宿主 IP（设 HOST_LAN_IP=192.168.1.251/24）"; exit 2; }
 
 echo "[+] 创建 $BR（桥接 $UPL，宿主 $HOSTIP，网关 $GW）"
 ip link add name "$BR" type bridge
