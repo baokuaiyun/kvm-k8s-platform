@@ -43,6 +43,8 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
+      # 默认会剥掉中文导致锚点变成 #_1/#_2；改用 pymdownx 保留 Unicode，锚点可读
+      slugify: !!python/name:pymdownx.slugs.uslugify
   - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
