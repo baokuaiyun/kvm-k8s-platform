@@ -22,7 +22,7 @@
 
   <!--
     自定义 DNS 记录（libvirt 内置 dnsmasq 渲染）
-    - k8s-api  : control-plane-endpoint 域名 → keepalived/kube-vip VIP
+    - k8s-api  : control-plane-endpoint 域名 → kube-vip 持有的 CP_VIP（本仓用 kube-vip，非 keepalived）
     - 可选预留  : harbor/gitlab/grafana 指向集群入口 VIP
   -->
   <dnsmasq:options>

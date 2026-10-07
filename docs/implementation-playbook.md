@@ -145,7 +145,7 @@ make dns-check         # dig @192.168.124.1 k8s-api.test.baokuaiyun.com
 192.168.124.30 k8s-api.test.baokuaiyun.com
 ```
 
-> DNS 只解决「名字→IP」；VIP 本身需由 keepalived/kube-vip 真实持有，否则仍连不通。生产环境改用阿里云 PrivateZone（见 `alicloud-deployment.md`）。
+> DNS 只解决「名字→IP」；VIP 本身需由 **kube-vip** 真实持有（本仓 CP VIP 用 kube-vip，非 keepalived；见 `network-architecture.md` 第五节），否则仍连不通。生产环境改用阿里云 PrivateZone（见 `alicloud-deployment.md`）。
 
 ```bash
 # 下载 Debian 13 cloud image
