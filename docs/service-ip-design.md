@@ -127,10 +127,15 @@ metadata: { annotations: { "io.cilium/lb-ipam-ips": "192.168.1.245" } }
 ```
 > 云上：建业务 vSwitch/辅助 ENI + 装 CCM；① 用固定 EIP/SLB，② 用按需 SLB。裸机：VLAN/桥接 + Cilium L2（或 BGP）。
 
-**已在 drill 单网段验证（`NET_BIZ_ENABLED=0`）**：
-- 功能①：Gateway 固定 `192.168.124.31`，`curl -k --resolve harbor.test.baokuaiyun.com:443:192.168.124.31 https://harbor.test.baokuaiyun.com/` → 200。
-- 功能②：`net-test/web` 自动分配 `192.168.124.40`，ARP→节点、`curl http://192.168.124.40/` → 200。
+**已在 drill 双网卡验证（`NET_BIZ_ENABLED=1`，业务网 `192.168.1.0/24`）**：
+- 宿主建 `br-lan`（桥接物理口 `eno1`，宿主 `192.168.1.251`）；节点加第二网卡 `enp2s0`（静态，如 `.230`，**不设默认网关**）。
+- 功能①：Gateway 固定 `192.168.1.235`；`curl -k --resolve harbor.test.baokuaiyun.com:443:192.168.1.235 https://harbor.test.baokuaiyun.com/` → 200。
+- 功能②：`net-test/web` 自动分配 `192.168.1.240`；`curl http://192.168.1.240/` → 200。
+- ARP：业务 VIP 由节点 `enp2s0` 在物理 LAN 宣告（同网段客户端可达）。
 - 校验：`make verify-network`（6a L7 固定入口 / 6b 业务按需池）。
+- 脚本：宿主桥 `bash kvm/scripts/setup-br-lan.sh`（幂等，带回滚）。
+
+> **踩坑**：VM 内用 netplan `set-name` 给第二网卡改名后，libvirt tap 可能失联（guest 发不出/收不到）→ 用 `virsh detach/attach-interface` **重建第二网卡**即恢复。改名前建议直接用 `set-name: enp2s0` 一次到位。
 
 ## 十、风险
 - 切桥断网（需带外控制）；**业务 IP 必须避开 LAN DHCP/已用**；业务网卡**勿设默认路由**（出网仍走管理网 NAT）；云商 ARP 抑制 → 云上不能 Cilium L2。

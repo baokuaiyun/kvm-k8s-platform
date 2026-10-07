@@ -21,7 +21,7 @@ CP1_DISK := $(CP_DISK)
 endif
 
 .PHONY: help init phase1 phase2 phase3 phase4 verify clean docs docs-build docs-down \
-	network-refresh dns-check vm-create vm-add-cp vm-add-worker \
+	network-refresh dns-check biz-bridge vm-create vm-add-cp vm-add-worker \
 	k8s-common kube-vip k8s-init k8s-join k8s-install join-cp join-worker scale-out kubeconfig \
 	acr-prepare image-load image-preflight helm-images charts-pull charts-push-yunxiao charts-push-git yunxiao-repos idp \
 	kvm-init dirs network-create image-download host-storage post-reboot-install \
@@ -81,6 +81,10 @@ network-refresh: ## 应用网络 XML 变更（含内网 DNS，短暂断网）
 dns-check: ## 验证内网 DNS（control-plane-endpoint）
 	@echo "[+] 解析 $(CP_ENDPOINT):"
 	dig @$(NET_GATEWAY) $(CP_ENDPOINT) +short
+
+biz-bridge: ## 建业务网桥 br-lan（桥接 eno1，D 方案；会短暂断宿主网，幂等带回滚）
+	@echo "[+] 建业务网桥 $(or $(BIZ_HOST_IFACE),br-lan)（桥接 $(BIZ_HOST_UPLINK），业务网 $(NET_BIZ_CIDR)）..."
+	bash kvm/scripts/setup-br-lan.sh
 
 image-download: ## 下载 Debian 13 云镜像
 	@if [ -s "$(IMAGE_DIR)/$(BASE_IMAGE)" ]; then \
