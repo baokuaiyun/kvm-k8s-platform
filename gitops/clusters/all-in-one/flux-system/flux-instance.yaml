@@ -1,0 +1,47 @@
+# 集群 all-in-one 的 FluxInstance（D2 模式：sync.path 指向本集群目录）
+# 源=Harbor OCI 制品（fleet）；verify=key-based cosign。
+apiVersion: fluxcd.controlplane.io/v1
+kind: FluxInstance
+metadata:
+  name: flux
+  namespace: flux-system
+spec:
+  distribution:
+    version: "2.x"
+    registry: harbor.test.baokuaiyun.com/baokuaiyun
+    artifact: oci://harbor.test.baokuaiyun.com/baokuaiyun/flux-operator-manifests:latest
+    artifactPullSecret: harbor-auth
+    imagePullSecret: harbor-auth
+  components:
+    - source-controller
+    - kustomize-controller
+    - helm-controller
+    - notification-controller
+  cluster:
+    type: kubernetes
+    size: small
+    multitenant: true
+    tenantDefaultServiceAccount: flux
+    networkPolicy: true
+    domain: cluster.local
+  sync:
+    kind: OCIRepository
+    url: oci://harbor.test.baokuaiyun.com/baokuaiyun/fleet
+    ref: latest
+    path: clusters/all-in-one
+    pullSecret: harbor-auth
+  kustomize:
+    patches:
+      - target:
+          kind: OCIRepository
+          name: flux-system
+        patch: |
+          - op: add
+            path: /spec/insecure
+            value: true
+          - op: add
+            path: /spec/verify
+            value:
+              provider: cosign
+              secretRef:
+                name: cosign-pub

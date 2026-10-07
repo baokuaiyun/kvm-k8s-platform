@@ -29,6 +29,10 @@ cp "$TMPKC" ~/.kube/"${CONTEXT}.config"
 
 # 合并（--raw 保留证书；先备份）
 if [ -f ~/.kube/config ]; then
+  # 清理同名 cluster/context/user，避免旧集群（重建前）残留导致 CA 冲突
+  kubectl --kubeconfig ~/.kube/config config delete-context "$CONTEXT" >/dev/null 2>&1 || true
+  kubectl --kubeconfig ~/.kube/config config delete-cluster "$CONTEXT" >/dev/null 2>&1 || true
+  kubectl --kubeconfig ~/.kube/config config unset "users.${CONTEXT}-admin" >/dev/null 2>&1 || true
   cp ~/.kube/config ~/.kube/config.bak.$(date +%s)
   KUBECONFIG=~/.kube/config:"$TMPKC" kubectl config view --flatten --raw > ~/.kube/config.merged
   mv ~/.kube/config.merged ~/.kube/config

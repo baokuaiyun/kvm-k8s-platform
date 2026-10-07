@@ -15,6 +15,14 @@ IFS=',' read -r -a UNITS <<< "$UNITS_ARG"
 LNAME="$(printf '%s\n' "${UNITS[@]}" | sort | paste -sd'+' -)"
 OUT="${GITOPS_DIR}/locks/stack-${LNAME}-${ENVNAME}-${CTYPE}.yaml"
 
+# 逻辑组件名 → 具体目录/制品名（存储驱动可替换：storage -> storage-<STORAGE_BACKEND>）
+resolve_component() {
+  case "$1" in
+    storage) echo "storage-${STORAGE_BACKEND:-host-zfs-iscsi}" ;;
+    *) echo "$1" ;;
+  esac
+}
+
 # 收集组件（并集去重 + 类型过滤）
 COMPS=(); declare -A SEEN=()
 for u in "${UNITS[@]}"; do
@@ -31,7 +39,8 @@ done
 # 生成 inputs（含 type 过滤）
 inputs=""
 for c in "${COMPS[@]}"; do
-  dir="$(find "${GITOPS_DIR}/components" -maxdepth 2 -type d -name "$c" | head -1)"
+  rc="$(resolve_component "$c")"
+  dir="$(find "${GITOPS_DIR}/components" -maxdepth 2 -type d -name "$rc" | head -1)"
   [ -n "$dir" ] && [ -f "${dir}/component.yaml" ] || continue
   if [ "$CTYPE" != "all" ]; then
     tf="$(awk '/^type:/{gsub(/[][ ]/,"");sub(/^type:/,"");print}' "${dir}/component.yaml")"
@@ -39,18 +48,18 @@ for c in "${COMPS[@]}"; do
   fi
   # 仅纳入"真正的部署组件"（本地提供该环境 overlays）
   if [ ! -d "${dir}/overlays/${ENVNAME}" ]; then
-    echo "[=] ${c} 无 overlays/${ENVNAME}（非部署组件），跳过" >&2; continue
+    echo "[=] ${c}(${rc}) 无 overlays/${ENVNAME}（非部署组件），跳过" >&2; continue
   fi
   # 仅纳入已构建制品的组件（检测式；有 robot 凭据时）。用 oras（OCI artifact 不支持 skopeo inspect）
   if [ -n "${HARBOR_ROBOT_PASS:-}" ]; then
     RU="robot\$${HARBOR_PROJECT}+pushpull"
     if ! env no_proxy='*' NO_PROXY='*' http_proxy= https_proxy= \
          oras manifest fetch --insecure --username "${RU}" --password "${HARBOR_ROBOT_PASS}" \
-         "${HARBOR_HOST}/${HARBOR_PROJECT}/${c}:latest" >/dev/null 2>&1; then
-      echo "[=] ${c} 无 Harbor 制品，跳过（未构建）" >&2; continue
+         "${HARBOR_HOST}/${HARBOR_PROJECT}/${rc}:latest" >/dev/null 2>&1; then
+      echo "[=] ${c}(${rc}) 无 Harbor 制品，跳过（未构建）" >&2; continue
     fi
   fi
-  inputs+="    - {component: \"${c}\", tag: \"latest\", environment: \"${ENVNAME}\"}
+  inputs+="    - {component: \"${rc}\", tag: \"latest\", environment: \"${ENVNAME}\"}
 "
 done
 

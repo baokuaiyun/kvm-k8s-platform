@@ -1,0 +1,20 @@
+# 集群收敛入口：把 tenants/（ResourceSet）以 postBuild 变量替换后应用。
+# ${ARTIFACT_TAG}/${ENVIRONMENT} 等来自 flux-runtime-info ConfigMap。
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: tenants
+  namespace: flux-system
+spec:
+  serviceAccountName: flux
+  interval: 5m
+  retryInterval: 3m
+  path: ./tenants
+  prune: true
+  sourceRef:
+    kind: OCIRepository
+    name: flux-system
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: flux-runtime-info

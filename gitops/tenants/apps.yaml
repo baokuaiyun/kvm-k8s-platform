@@ -1,0 +1,101 @@
+# ResourceSet（D2 模式）：业务应用（租户命名空间 + admin RBAC）
+# 源=Harbor OCI（apps 制品）；verify=key-based cosign；依赖 infra 就绪后再收敛。
+# inputs 的 ${ARTIFACT_TAG}/${ENVIRONMENT} 由 clusters/<c>/tenants.yaml 的 postBuild.substituteFrom 注入。
+apiVersion: fluxcd.controlplane.io/v1
+kind: ResourceSet
+metadata:
+  name: apps
+  namespace: flux-system
+  annotations:
+    fluxcd.controlplane.io/reconcileEvery: "5m"
+spec:
+  dependsOn:
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra
+      namespace: monitoring
+      ready: true
+      readyExpr: status.observedGeneration >= 0
+  inputs:
+    - tenant: "demo"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
+  resources:
+    - apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: << inputs.tenant >>
+        labels:
+          toolkit.fluxcd.io/role: "tenant"
+    - apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: flux
+        namespace: << inputs.tenant >>
+      imagePullSecrets:
+        - name: harbor-auth
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      metadata:
+        name: flux
+        namespace: << inputs.tenant >>
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: admin
+      subjects:
+        - kind: ServiceAccount
+          name: flux
+          namespace: << inputs.tenant >>
+    - apiVersion: v1
+      kind: Secret
+      metadata:
+        name: harbor-auth
+        namespace: << inputs.tenant >>
+        annotations:
+          fluxcd.controlplane.io/copyFrom: "flux-system/harbor-auth"
+      type: kubernetes.io/dockerconfigjson
+    - apiVersion: v1
+      kind: Secret
+      metadata:
+        name: cosign-pub
+        namespace: << inputs.tenant >>
+        annotations:
+          fluxcd.controlplane.io/copyFrom: "flux-system/cosign-pub"
+    - apiVersion: source.toolkit.fluxcd.io/v1
+      kind: OCIRepository
+      metadata:
+        name: apps
+        namespace: << inputs.tenant >>
+      spec:
+        interval: 5m
+        insecure: true
+        secretRef:
+          name: harbor-auth
+        url: "oci://harbor.test.baokuaiyun.com/baokuaiyun/<< inputs.tenant >>"
+        ref:
+          tag: << inputs.tag >>
+        verify:
+          provider: cosign
+          secretRef:
+            name: cosign-pub
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      metadata:
+        name: apps
+        namespace: << inputs.tenant >>
+      spec:
+        targetNamespace: << inputs.tenant >>
+        serviceAccountName: flux
+        interval: 30m
+        prune: true
+        wait: true
+        timeout: 5m
+        sourceRef:
+          kind: OCIRepository
+          name: apps
+        path: "./overlays/<< inputs.environment >>"
+        postBuild:
+          substituteFrom:
+            - kind: ConfigMap
+              name: flux-runtime-info

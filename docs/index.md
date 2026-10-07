@@ -12,16 +12,20 @@ make phase2        # 阶段2: 安全及运营监控
 make phase3        # 阶段3: 应用部署 + GitOps
 make phase4        # 阶段4: 持续升级维护
 make verify        # 全量验收
+make rebuild       # 删除→重建→平台可用（保留宿主存储）
 ```
 
 ## 文档导航
 
 - [本机 KVM 四阶段实施手册](implementation-playbook.md)
+- [网络架构与 LB 设计](network-architecture.md)
 - [本机 vs 阿里云环境差异](environment-differences.md)
 - [阿里云生产部署（多 ECS + CCM/SLB）](alicloud-deployment.md)
 - [域名/证书/镜像迁移](baokuaiyun-domain-migration.md)
 - [三模式多租户隔离架构](tenant-isolation-architecture.md)
 - [存储规划（StorageClass/PV/云盘）](storage-plan.md)
+- [云盘数据解决方案（ZFS+iSCSI 云盘/计算分离）](cloud-disk-data-solution.md)
+- [验收与证据（Proof）](evidence-and-acceptance.md)
 - [应用数据说明与备份规划](application-data.md)
 - [数据分级与 RPO/RTO](data-classification.md)
 - [凭据管理](secret-management.md)
@@ -31,7 +35,8 @@ make verify        # 全量验收
 ## 环境切换
 
 ```bash
-# 本机演练（Longhorn，2 副本）
+# 本机演练（单节点起步；宿主 ZFS+iSCSI 云盘模拟 + 宿主 MinIO）
+make host-storage
 make phase1 DOMAIN=test.baokuaiyun.com
 
 # 阿里云生产（云盘 ESSD + OSS 异地备份；改 variables.mk 或环境变量覆盖）

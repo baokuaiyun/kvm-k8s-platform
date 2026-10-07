@@ -1,0 +1,18 @@
+name: storage-host-zfs-iscsi
+plane: infra
+fleet: [all-in-one, mgmt, biz, data]
+env: [drill, prod, enterprise]
+chart: democratic-csi-0.15.1.tgz
+images:
+  # 主镜像（应用版本，与 chart 版本是两条流）
+  - ghcr.io/democratic-csi/democratic-csi:v1.9.5     harbor.test.baokuaiyun.com/baokuaiyun/democratic-csi:v1.9.5
+  - ghcr.io/democratic-csi/csi-grpc-proxy:v0.5.7     harbor.test.baokuaiyun.com/baokuaiyun/csi-grpc-proxy:v0.5.7
+  - docker.io/busybox:1.37.0                         harbor.test.baokuaiyun.com/baokuaiyun/busybox:1.37.0
+  # CSI sidecars（registry.k8s.io/sig-storage）
+  - registry.k8s.io/sig-storage/csi-attacher:v4.4.0                 harbor.test.baokuaiyun.com/baokuaiyun/csi-attacher:v4.4.0
+  - registry.k8s.io/sig-storage/csi-provisioner:v3.6.0              harbor.test.baokuaiyun.com/baokuaiyun/csi-provisioner:v3.6.0
+  - registry.k8s.io/sig-storage/csi-resizer:v1.9.0                  harbor.test.baokuaiyun.com/baokuaiyun/csi-resizer:v1.9.0
+  - registry.k8s.io/sig-storage/csi-snapshotter:v8.2.1              harbor.test.baokuaiyun.com/baokuaiyun/csi-snapshotter:v8.2.1
+  - registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.0   harbor.test.baokuaiyun.com/baokuaiyun/csi-node-driver-registrar:v2.9.0
+  - registry.k8s.io/sig-storage/snapshot-controller:v8.2.1         harbor.test.baokuaiyun.com/baokuaiyun/snapshot-controller:v8.2.1
+type: [A, B]

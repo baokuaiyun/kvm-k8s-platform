@@ -1,0 +1,13 @@
+# 生产：阿里云云盘 ESSD。云盘有可用区属性，需 WaitForFirstConsumer。
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: app-storage
+provisioner: diskplugin.csi.alibabacloud.com
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  type: cloud_essd
+  fstype: ext4
+  performanceLevel: PL1
+  encrypted: "true"
+  diskTags: "app-storage"

@@ -1,0 +1,15 @@
+[Unit]
+Description=Post-reboot finish: ZFS storage + democratic-csi for k8s platform
+After=network-online.target libvirtd.service docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=HOME=/root
+Environment=KUBECONFIG=/root/.kube/config
+ExecStart=__ROOT__/kvm/scripts/post-reboot-finish.sh
+TimeoutStartSec=1800
+
+[Install]
+WantedBy=multi-user.target

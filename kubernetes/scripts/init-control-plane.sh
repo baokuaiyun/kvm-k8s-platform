@@ -26,7 +26,8 @@ fi
 
 ssh -o StrictHostKeyChecking=no root@"${CP1_IP}" \
   "ENDPOINT=${ENDPOINT} POD_CIDR=${POD_CIDR} SERVICE_CIDR=${SERVICE_CIDR} \
-   K8S_VERSION=${K8S_VERSION} K8S_IMAGE_REPOSITORY=${K8S_IMAGE_REPOSITORY} CP_VIP=${CP_VIP:-} bash -s" <<'NODE'
+   K8S_VERSION=${K8S_VERSION} K8S_IMAGE_REPOSITORY=${K8S_IMAGE_REPOSITORY} CP_VIP=${CP_VIP:-} \
+   WK_INIT_COUNT=${WK_INIT_COUNT:-0} bash -s" <<'NODE'
 set -euo pipefail
 
 ARGS=(init
@@ -49,6 +50,18 @@ kubeadm "${ARGS[@]}" --v=5 2>&1 | tee /root/kubeadm-init.log
 mkdir -p $HOME/.kube
 cp /etc/kubernetes/admin.conf $HOME/.kube/config
 chown $(id -u):$(id -g) $HOME/.kube/config
+
+# 单节点起步：唯一节点需承载业务负载，移除 control-plane 污点
+if [ "${WK_INIT_COUNT:-0}" -lt 1 ]; then
+  echo "[+] 单节点模式：等待节点注册并移除 control-plane 污点..."
+  for i in $(seq 1 30); do
+    if kubectl --kubeconfig=/etc/kubernetes/admin.conf get node >/dev/null 2>&1; then break; fi
+    sleep 2
+  done
+  kubectl --kubeconfig=/etc/kubernetes/admin.conf taint nodes --all node-role.kubernetes.io/control-plane- 2>/dev/null \
+    && echo "[+] 已移除 control-plane 污点（业务可调度到本节点）" \
+    || echo "[!] 移除污点失败（可稍后手动: kubectl taint nodes --all node-role.kubernetes.io/control-plane-)"
+fi
 
 echo "[+] 控制面初始化完成"
 echo "[+] init 日志: /root/kubeadm-init.log"

@@ -7,8 +7,12 @@
 ## 一、两个平面
 | 平面 | 内容 | 管理方式 |
 |---|---|---|
+| **基础设施平面** | 云资源 / **Flux 引导**（Flux Operator + FluxInstance + 拉取密钥 + runtime-info） | **Terraform**（`terraform/`，官方 bootstrap 模块）|
 | **引导面** | 集群核心（kubeadm/kube-vip、Cilium、Longhorn、cert-manager、kgateway）＋ 数据平面（CNPG/redis-operator + PG/Redis）＋ **Harbor** ＋ **Flux Operator 自身** | 脚本 + Day-0 本地包（**不进 Flux**） |
 | **Flux 面** | 其余全部（GitLab、可观测、策略、租户、组件…） | Flux（OCI 制品 + cosign 验签） |
+
+> **runtime-info**：`flux-runtime-info` ConfigMap（`clusters/<c>/runtime-info.yaml`）经 `postBuild.substituteFrom`
+> 注入 `tenants/*` 的 `${ARTIFACT_TAG}`/`${ENVIRONMENT}`/`${CLUSTER_*}`；Terraform 用 SSA 追加 `CLUSTER_REGION`。
 
 判据：**"要起 Harbor（或集群本身）就必须先有的" → 引导面**。因此 **Harbor 及其依赖的 PG/Redis 属引导面**。
 

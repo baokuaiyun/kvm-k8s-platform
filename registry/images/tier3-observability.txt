@@ -11,3 +11,5 @@ docker.io/grafana/loki:3.1.0                        docker.io.grafana.loki      
 docker.io/grafana/promtail:3.1.0                    docker.io.grafana.promtail               Tier2
 quay.io/prometheus/blackbox-exporter:v0.25.0        quay.prometheus.blackbox-exporter        Tier2
 otel/opentelemetry-collector-contrib:0.104.0        otel.opentelemetry-collector-contrib     Tier2
+# 告警中转适配器（钉钉，可选；Makefile ALERT_ADAPTER_IMAGE 引用 prometheus-webhook-dingtalk）
+ghcr.io/timonwong/prometheus-webhook-dingtalk:v2.2.0 prometheus-webhook-dingtalk             Tier2

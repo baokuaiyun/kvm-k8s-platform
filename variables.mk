@@ -6,6 +6,8 @@
 
 # 本机凭据（不提交）: cp acr.env.example acr.env 并填真实值
 -include $(dir $(lastword $(MAKEFILE_LIST)))acr.env
+# 运维客户端参数（不提交，可选）: cp ops.env.example ops.env
+# 由 apply-alerts.sh / alert-adapter 以 shell source 方式导入（避免 make 对 $ 的二次解析）
 
 # ============ 网络 ============
 NET_NAME   := br-prod
@@ -21,17 +23,26 @@ WK_NAMES := k8s-worker-1 k8s-worker-2
 WK_IPS   := 192.168.124.20 192.168.124.21
 WK_MACS  := 52:54:00:01:02:01 52:54:00:01:02:02
 
-# ============ 起步规模（1CP+1W，后续 make scale-out 扩展） ============
+# ============ 起步规模（单节点起步，后续 make scale-out 扩展） ============
+# 单节点 = 1CP + 0W，cp-1 自动去污点承载业务；扩容用 make scale-out 补齐 3CP+2W
 CP_INIT_COUNT := 1
-WK_INIT_COUNT := 1
+WK_INIT_COUNT := 0
 
 # ============ VM 规格 ============
+# 起步单节点：唯一节点要同时承载控制面 + 存储 + 平台组件，规格单独放大。
+NODE_VCPU := 8
+NODE_RAM  := 16384
+NODE_DISK := 120G
+# 扩容/多节点时 CP/WK 使用下列规格（起步单节点用 NODE_* 覆盖 cp-1）
 CP_VCPU := 2
 CP_RAM  := 4096
 CP_DISK := 30G
 WK_VCPU := 4
 WK_RAM  := 4096
 WK_DISK := 50G
+# 单节点起始时是否让 cp-1 使用 NODE_*（=1）还是 CP_*（=0）
+# 由 WK_INIT_COUNT==0 自动判定；此变量仅供显式覆盖，一般不用改
+SINGLE_NODE_SPEC ?= $(if $(filter 0,$(WK_INIT_COUNT)),1,0)
 
 # ============ 存储路径 ============
 DATA_DIR      := /data/kvm
@@ -59,22 +70,52 @@ REDIS_OP_VERSION := 0.17.0
 K8S_APT_REPO_URL ?= https://mirrors.aliyun.com/kubernetes-new/core/stable/v$(K8S_MINOR)/deb/
 
 # ============ 存储契约（StorageClass / 快照 / 备份目标） ============
-# 统一 SC 名称 app-storage：drill 由 Longhorn 提供，prod 由阿里云盘 CSI 提供。
-# 切换后端: make storage-class STORAGE_BACKEND=alicloud
-# 后端: longhorn | alicloud
-STORAGE_BACKEND   ?= longhorn
+# 统一 SC 名称 app-storage：drill 由「宿主 ZFS + iSCSI + democratic-csi」提供（云盘/计算分离），
+# prod 由阿里云盘 CSI 提供；Longhorn 保留为可选后端。
+# 切换后端: make storage-class STORAGE_BACKEND=<host-zfs-iscsi|longhorn|alicloud>
+# 详见 docs/cloud-disk-data-solution.md
+STORAGE_BACKEND   ?= host-zfs-iscsi
 # 所有 PVC 引用的规范 SC 名称
 STORAGE_CLASS     ?= app-storage
-# VolumeSnapshotClass（CNPG/VolumeSnapshot 用；alicloud 环境为 alicloud-disk）
-SNAPSHOT_CLASS    ?= longhorn
+# VolumeSnapshotClass（CNPG/VolumeSnapshot 用）
+SNAPSHOT_CLASS    ?= host-zfs-iscsi
 
-# Longhorn 副本数：节点数 < 3 时必须 <= 可用节点数
-# drill(1CP+1W) 起步 2 副本；prod(>=3 存储节点) 用 3（见 docs/storage-plan.md）
+# ---- 宿主 ZFS + iSCSI（云盘模拟，见 docs/cloud-disk-data-solution.md）----
+# 宿主存储池名与后端盘；多盘可改 HOST_ZFS_VDEV（如 mirror /dev/sdb /dev/sdc）
+ZFS_POOL          ?= tank
+HOST_DATA_DISK    ?= /dev/sdb
+# drill 默认用文件 vdev（不碰 /data 文件系统，安全幂等）；prod=0 用裸盘
+HOST_ZFS_USE_FILE ?= 1
+HOST_ZFS_FILE     ?= /data/zfs-pool.img
+HOST_ZFS_FILE_SIZE ?= 50G
+HOST_ZFS_VDEV     ?= $(HOST_DATA_DISK)
+ZFS_COMPRESSION   ?= zstd
+ZFS_ENCRYPTION    ?= off          # drill=off；prod=on（需 KMS/密钥）
+# iSCSI target 基名（IQN 前缀）与 CHAP 用户前缀
+ISCSI_IQN_PREFIX  ?= iqn.2026-01.com.baokuaiyun
+ISCSI_TARGET_IQN  ?= $(ISCSI_IQN_PREFIX):k8s
+# democratic-csi：chart 版本与“应用镜像” tag 是两条版本流（chart 0.15.x / 镜像 v1.9.x）
+DEMOCRATIC_CSI_VERSION   ?= 0.15.1
+DEMOCRATIC_CSI_IMAGE_TAG ?= v1.9.5
+CSI_NAMESPACE     ?= democratic-csi
+# CSI controller 经 SSH 管理宿主 target 用的密钥（dev+on-host 共用）
+HOST_CSI_SSH_KEY  ?= /etc/k8s-host-csi/id_ed25519
+# 宿主 MinIO（模拟 OSS）：S3 端点与端口
+HOST_MINIO_PORT   ?= 9000
+HOST_MINIO_CONSOLE_PORT ?= 9001
+HOST_MINIO_DATA   ?= /data/minio
+HOST_MINIO_ENDPOINT ?= http://$(NET_GATEWAY):$(HOST_MINIO_PORT)
+# MinIO 镜像（宿主 docker 常受代理限制；可换国内镜像或预加载）
+MINIO_IMAGE       ?= quay.io/minio/minio:latest
+MINIO_MC_IMAGE    ?= quay.io/minio/mc:latest
+
+# ---- Longhorn（可选后端，drill 默认不再使用）----
+# 副本数：节点数 < 3 时必须 <= 可用节点数
 LONGHORN_REPLICAS := 2
 # drill 仅 2 节点，必须允许 Longhorn 调度到控制面才能达到 2 副本
 LONGHORN_ALLOW_CONTROL_PLANE := true
 
-# 异地备份目标：
+# 异地备份目标（Longhorn 可选后端用；云盘方案见 BACKUP_TARGET_ZFS）：
 #   drill: 宿主机 NFS 目录（如 nfs://192.168.124.1:/data/backups/longhorn）
 #   prod : 阿里云 OSS（如 s3://bucket@oss-cn-hangzhou.aliyuncs.com/）
 BACKUP_TARGET     ?= nfs://192.168.124.1:/data/backups/longhorn
@@ -83,9 +124,11 @@ LONGHORN_BACKUP_CRED_SECRET ?= longhorn-backup-cred
 # S3/OSS 凭据（生产在 acr.env 覆盖；drill NFS 留空）
 LONGHORN_ACCESS_KEY ?=
 LONGHORN_SECRET_KEY ?=
-# Velero 对象存储位置（OSS，先用占位；生产在 acr.env 覆盖）
+# 云盘方案异地备份：宿主 ZFS send/recv 目标池（drill=宿主另一个池/目录）
+HOST_ZFS_SEND_TARGET ?= /data/backups/zfs
+# Velero 对象存储位置（drill=宿主 MinIO；prod=OSS）
 VELERO_BUCKET     ?= velero-backup
-VELERO_S3_URL     ?= oss-cn-hangzhou.aliyuncs.com
+VELERO_S3_URL     ?= $(HOST_MINIO_ENDPOINT)
 OSS_REGION        ?= $(ALIYUN_REGION)
 
 # 应用/DB 异地对象存储（OSS，S3 兼容）：留空 = 不做异地（drill）
@@ -129,6 +172,62 @@ LOKI_SIZE              ?= 20Gi
 # 备份保留：本地/近端 与 异地对象存储
 BACKUP_RETENTION_DAYS  ?= 7
 OFFSITE_RETENTION_DAYS ?= 30
+
+# ============ 告警通知（Alertmanager，系统参数化，提前设置） ============
+# 由 observability/apply-alerts.sh 渲染 AlertmanagerConfig；密钥放 acr.env / ops.env（勿提交）
+# 渠道类型: generic|slack|dingtalk|wecom（钉钉/企微需中转适配，见 docs/alert-notification.md）
+# 说明：以下变量不使用行尾注释（GNU make 会把 # 前的空格并进变量值）
+ALERT_NAMESPACE        ?= monitoring
+ALERT_WEBHOOK_ENABLED  ?= 0
+# S：通用 webhook / Slack incoming / 钉钉企微中转地址
+ALERT_WEBHOOK_URL      ?=
+ALERT_WEBHOOK_TYPE     ?= generic
+ALERT_EMAIL_ENABLED    ?= 0
+ALERT_EMAIL_TO         ?=
+ALERT_EMAIL_FROM       ?= alertmanager@$(DOMAIN)
+# 如 smtp.example.com:587
+SMTP_SMARTHOST         ?=
+# S
+SMTP_AUTH_USERNAME     ?=
+# S
+SMTP_AUTH_PASSWORD     ?=
+# warning 走哪些渠道：all（默认，同 critical）| email（只发邮件）
+ALERT_WARNING_CHANNELS ?= all
+# 路由：critical 立即、warning 汇总
+ALERT_GROUP_WAIT       ?= 30s
+ALERT_GROUP_INTERVAL   ?= 5m
+ALERT_REPEAT_INTERVAL  ?= 4h
+# 钉钉集群内适配器（可选 make alert-adapter）：群机器人 webhook 与加签 secret
+ALERT_DINGTALK_WEBHOOK ?=
+ALERT_DINGTALK_SECRET  ?=
+# 适配器镜像（经 Harbor；同步见 registry/images/tier3-observability.txt）
+ALERT_ADAPTER_IMAGE    ?= $(IMAGE_REPOSITORY)/prometheus-webhook-dingtalk:v2.2.0
+
+# ============ PV 云盘自动扩容（见 docs/cloud-disk-data-solution.md §5） ============
+# 控制器按用量阈值自动 patch PVC requests -> CSI resizer 在线扩容；默认 dry-run 只报告
+# 1=只写 recommendation 注解并日志，不 patch；0=实际扩容
+PV_AUTOSCALER_NS       ?= pvc-autoscaler
+PV_AUTOSCALER_ENABLED  ?= 1
+PV_AUTOSCALER_DRY_RUN  ?= 1
+PV_AUTOSCALER_SCHEDULE ?= */5 * * * *
+# 用量比例触发阈值
+PV_AUTOSCALER_THRESHOLD ?= 0.80
+# 扩容倍数
+PV_AUTOSCALER_FACTOR   ?= 1.5
+# 单次最小增量
+PV_AUTOSCALER_MIN_STEP ?= 5Gi
+# 全局容量上限（可被 PVC 注解 auto-expand/max-size 覆盖）
+PV_AUTOSCALER_MAX_SIZE ?= 100Gi
+# 同一 PVC 扩容冷却（分钟）
+PV_AUTOSCALER_COOLDOWN_MIN ?= 60
+# 空=全部；否则逗号分隔白名单
+PV_AUTOSCALER_NAMESPACES ?=
+# 逗号分隔排除的 namespace 或 ns/name
+PV_AUTOSCALER_EXCLUDE  ?=
+# Prometheus 地址（控制器查 kubelet_volume_stats_* 用）
+PROM_URL               ?= http://monitoring-kube-prometheus-prometheus.$(ALERT_NAMESPACE).svc:9090
+# 镜像：自带 kubectl+jq+bash（经 Harbor；同步见 registry/images/tier2-platform.txt）
+PV_AUTOSCALER_IMAGE    ?= $(IMAGE_REPOSITORY)/alpine-k8s:$(K8S_VERSION)
 
 # ============ 域名 ============
 # 本机演练: test.baokuaiyun.com | 阿里云生产: baokuaiyun.com
@@ -212,6 +311,7 @@ HELM_REDIS_OP = $(if $(wildcard $(HELM_CHARTS_DIR)/redis-operator-*.tgz),$(first
 HELM_CNPG     = $(if $(wildcard $(HELM_CHARTS_DIR)/cloudnative-pg-*.tgz),$(firstword $(wildcard $(HELM_CHARTS_DIR)/cloudnative-pg-*.tgz)),cnpg/cloudnative-pg)
 HELM_HARBOR   = $(if $(wildcard $(HELM_CHARTS_DIR)/harbor-*.tgz),$(firstword $(wildcard $(HELM_CHARTS_DIR)/harbor-*.tgz)),harbor/harbor)
 HELM_GITLAB   = $(if $(wildcard $(HELM_CHARTS_DIR)/gitlab-*.tgz),$(firstword $(wildcard $(HELM_CHARTS_DIR)/gitlab-*.tgz)),gitlab/gitlab)
+HELM_DEMOCRATIC_CSI = $(if $(wildcard $(HELM_CHARTS_DIR)/democratic-csi-*.tgz),$(firstword $(wildcard $(HELM_CHARTS_DIR)/democratic-csi-*.tgz)),democratic-csi/democratic-csi)
 
 # ============ Flux Operator（Helm，chart+镜像走 Harbor）============
 FLUX_OPERATOR_VERSION ?= 0.61.0
@@ -241,6 +341,24 @@ HELM_OCI_REPO      ?= oci://$(HARBOR_HOST)/$(HARBOR_PROJECT)
 POD_CIDR     := 10.244.0.0/16
 SERVICE_CIDR := 10.96.0.0/12
 
+# ============ 节点 IP 模式与 LB IP（服务负载均衡地址） ============
+# 分层：G 默认（此处）<- P 覆盖（gitops/profiles/<env>.env）<- S 密钥（acr.env）
+# 三环境差异只改这几个开关，应用侧契约（Service type=LoadBalancer / Gateway listener）不变。
+# 详见 docs/parameters.md「节点 / LB IP」与 docs/environment-differences.md。
+# 节点 IP 来源: static(KVM 静态 DHCP) | dhcp | cloud(ECS/VPC 分配；prod)
+NODE_IP_MODE   ?= static
+# LB 实现机制: cilium-l2(Cilium LB IPAM+L2, drill/bare) | kubevip | metallb | slb(阿里云 CCM) | none
+LB_IP_MODE     ?= cilium-l2
+# Cilium LB IPAM 地址池（仅 cilium-l2/metallb；须避开网关/节点静态段/CP_VIP/DHCP）
+LB_POOL_START  ?= 192.168.124.40
+LB_POOL_END    ?= 192.168.124.79
+# 入口主 IP（Gateway/Ingress）：drill 固定；prod 由 SLB 回写，故留空
+GATEWAY_VIP    ?= 192.168.124.31
+# 地址宣告方式: l2(ARP) | bgp | cloud(云 LB 代管)
+LB_ANNOUNCE    ?= l2
+# loadBalancerClass（多后端共存/切换；空=默认实现）
+LB_CLASS       ?=
+
 # ============ Git (GitOps) ============
 GIT_OWNER := baokuaiyun
 GIT_REPO  := k8s-gitops
@@ -256,10 +374,15 @@ export CP_NAMES CP_IPS CP_MACS CP_INIT_COUNT
 export WK_NAMES WK_IPS WK_MACS WK_INIT_COUNT
 export CP_VIP CP_ENDPOINT CP_ENDPOINT_PORT VIP_IFACE K8S_CONTEXT
 export POD_CIDR SERVICE_CIDR
+export NODE_IP_MODE LB_IP_MODE LB_POOL_START LB_POOL_END GATEWAY_VIP LB_ANNOUNCE LB_CLASS
 export K8S_VERSION K8S_MINOR K8S_APT_REPO_URL KUBE_VIP_VERSION
 export DOMAIN HARBOR_HOST HARBOR_PROJECT LONGHORN_REPLICAS
 export HARBOR_USER HARBOR_PASS HARBOR_ADMIN_PASS HARBOR_ROBOT_USER HARBOR_ROBOT_PASS HELM_OCI_REPO
 export STORAGE_BACKEND STORAGE_CLASS SNAPSHOT_CLASS LONGHORN_ALLOW_CONTROL_PLANE
+export ZFS_POOL HOST_DATA_DISK HOST_ZFS_VDEV ZFS_COMPRESSION ZFS_ENCRYPTION
+export HOST_ZFS_USE_FILE HOST_ZFS_FILE HOST_ZFS_FILE_SIZE
+export ISCSI_IQN_PREFIX ISCSI_TARGET_IQN DEMOCRATIC_CSI_VERSION DEMOCRATIC_CSI_IMAGE_TAG CSI_NAMESPACE HOST_CSI_SSH_KEY HOST_ZFS_SEND_TARGET
+export HOST_MINIO_PORT HOST_MINIO_CONSOLE_PORT HOST_MINIO_DATA HOST_MINIO_ENDPOINT MINIO_IMAGE MINIO_MC_IMAGE
 export BACKUP_TARGET LONGHORN_BACKUP_CRED_SECRET LONGHORN_ACCESS_KEY LONGHORN_SECRET_KEY
 export VELERO_BUCKET VELERO_S3_URL OSS_REGION
 export PG_BACKUP_BUCKET S3_ENDPOINT S3_ACCESS_KEY S3_SECRET_KEY
@@ -270,6 +393,13 @@ export HARBOR_REGISTRY_SIZE HARBOR_JOBSERVICE_SIZE HARBOR_TRIVY_SIZE
 export GITALY_SIZE GITLAB_OBJECT_SIZE GITLAB_OBJECT_STORE GITLAB_OSS_BUCKET
 export PROMETHEUS_SIZE PROMETHEUS_RETENTION GRAFANA_SIZE LOKI_SIZE
 export BACKUP_RETENTION_DAYS OFFSITE_RETENTION_DAYS
+export ALERT_NAMESPACE ALERT_WEBHOOK_ENABLED ALERT_WEBHOOK_URL ALERT_WEBHOOK_TYPE ALERT_WARNING_CHANNELS
+export ALERT_EMAIL_ENABLED ALERT_EMAIL_TO ALERT_EMAIL_FROM SMTP_SMARTHOST SMTP_AUTH_USERNAME SMTP_AUTH_PASSWORD
+export ALERT_GROUP_WAIT ALERT_GROUP_INTERVAL ALERT_REPEAT_INTERVAL
+export ALERT_ENV_FILE ALERT_DINGTALK_WEBHOOK ALERT_DINGTALK_SECRET ALERT_ADAPTER_IMAGE
+export PV_AUTOSCALER_NS PV_AUTOSCALER_ENABLED PV_AUTOSCALER_DRY_RUN PV_AUTOSCALER_SCHEDULE
+export PV_AUTOSCALER_THRESHOLD PV_AUTOSCALER_FACTOR PV_AUTOSCALER_MIN_STEP PV_AUTOSCALER_MAX_SIZE
+export PV_AUTOSCALER_COOLDOWN_MIN PV_AUTOSCALER_NAMESPACES PV_AUTOSCALER_EXCLUDE PV_AUTOSCALER_IMAGE PROM_URL
 export ACR_REGISTRY ACR_NAMESPACE ACR_AUTH_MODE ACR_USER ACR_PASS ACR_SOURCE
 export BYPASS_PROXY MIRROR_K8S MIRROR_GHCR MIRROR_DOCKER MIRROR_QUAY
 export IMAGE_REPOSITORY IMAGE_CACHE_DIR

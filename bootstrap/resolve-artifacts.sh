@@ -33,6 +33,14 @@ scheme_c() {
   esac
 }
 
+# 逻辑组件名 → 具体目录/制品名（存储驱动可替换：storage -> storage-<STORAGE_BACKEND>）
+resolve_component() {
+  case "$1" in
+    storage) echo "storage-${STORAGE_BACKEND:-host-zfs-iscsi}" ;;
+    *) echo "$1" ;;
+  esac
+}
+
 # 收集组件（并集去重，保持首次出现顺序）
 COMPS=(); declare -A SEEN=()
 for u in "${UNITS[@]}"; do
@@ -53,8 +61,9 @@ echo "# units=${LNAME} env=${ENVNAME} type=${CTYPE} generated=$(date -Iseconds)"
 echo "# format: <src> <harbor-target>" >> "$tmp"
 
 for c in "${COMPS[@]}"; do
-  dir="$(find "${GITOPS_DIR}/components" -maxdepth 2 -type d -name "$c" | head -1)"
-  [ -n "$dir" ] || { echo "[=] 组件 ${c} 无目录，跳过" >&2; continue; }
+  rc="$(resolve_component "$c")"
+  dir="$(find "${GITOPS_DIR}/components" -maxdepth 2 -type d -name "$rc" | head -1)"
+  [ -n "$dir" ] || { echo "[=] 组件 ${c}(${rc}) 无目录，跳过" >&2; continue; }
   cy="${dir}/component.yaml"
   [ -f "$cy" ] || { echo "[=] ${c} 无 component.yaml，跳过" >&2; continue; }
 

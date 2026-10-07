@@ -1,5 +1,6 @@
-# ResourceSet 样板：把共享组件按 inputs 渲染到各"组件命名空间"
+# ResourceSet（D2 模式）：把共享组件按 inputs 渲染到各"组件命名空间"
 # 源=Harbor OCI；verify=key-based cosign(secretRef)；跨 ns 凭据用 copyFrom。
+# inputs 的 ${ARTIFACT_TAG}/${ENVIRONMENT} 由 clusters/<c>/tenants.yaml 的 postBuild.substituteFrom 注入。
 apiVersion: fluxcd.controlplane.io/v1
 kind: ResourceSet
 metadata:
@@ -10,21 +11,37 @@ metadata:
 spec:
   inputs:
     - tenant: "cert-manager"
-      tag: "latest"
-      environment: "drill"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
     - tenant: "monitoring"
-      tag: "latest"
-      environment: "drill"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
+    - tenant: "storage-host-zfs-iscsi"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
   resources:
     - apiVersion: v1
       kind: Namespace
       metadata:
         name: << inputs.tenant >>
+        labels:
+          toolkit.fluxcd.io/role: "infra"
+    - apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: flux-runtime-info
+        namespace: << inputs.tenant >>
+        annotations:
+          fluxcd.controlplane.io/copyFrom: "flux-system/flux-runtime-info"
+        labels:
+          reconcile.fluxcd.io/watch: Enabled
     - apiVersion: v1
       kind: ServiceAccount
       metadata:
         name: flux
         namespace: << inputs.tenant >>
+      imagePullSecrets:
+        - name: harbor-auth
     - apiVersion: rbac.authorization.k8s.io/v1
       kind: Role
       metadata:
@@ -86,6 +103,7 @@ spec:
         namespace: << inputs.tenant >>
       spec:
         targetNamespace: << inputs.tenant >>
+        serviceAccountName: flux
         interval: 30m
         prune: true
         wait: true
@@ -94,3 +112,7 @@ spec:
           kind: OCIRepository
           name: infra
         path: "./overlays/<< inputs.environment >>"
+        postBuild:
+          substituteFrom:
+            - kind: ConfigMap
+              name: flux-runtime-info

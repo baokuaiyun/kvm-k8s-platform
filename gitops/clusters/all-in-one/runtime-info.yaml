@@ -1,0 +1,19 @@
+# Per-cluster runtime info（D2）：postBuild.substituteFrom 的数据源。
+# Terraform 可用 SSA 追加字段（如 CLUSTER_REGION），与 Git 字段互不冲突。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flux-runtime-info
+  namespace: flux-system
+  labels:
+    toolkit.fluxcd.io/runtime: "true"
+    reconcile.fluxcd.io/watch: Enabled
+  annotations:
+    kustomize.toolkit.fluxcd.io/ssa: "Merge"
+data:
+  ENVIRONMENT: "drill"
+  CLUSTER_NAME: "all-in-one"
+  CLUSTER_DOMAIN: "test.baokuaiyun.com"
+  ARTIFACT_TAG: "latest"
+  ARTIFACT_SUBJECT_WORKFLOW: "ci-build-components"
+  ARTIFACT_SUBJECT_GIT_REF: "refs/heads/main"

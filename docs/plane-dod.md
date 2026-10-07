@@ -22,7 +22,7 @@
 - [ ] 数据面专属可观测（exporter + 备份时效/failover/复制延迟告警）。
 - [ ] 安全：in-transit TLS、静态加密、最小权限角色、pgAudit、密钥经 ESO/KMS。
 - [ ] 跨集群消费方案就绪（ClusterMesh / LB+DNS）+ 源 CIDR 白名单。
-- 验收：`make verify-data`（拟）：端点可达 + PITR 恢复演练 + 备份时效告警无触发。
+- 验收：`make verify-data`：端点可达 + 备份时效 + （配 S3 时）PITR 恢复演练。
 
 ## 工具链·管理平面
 - [ ] Harbor 单项目 + robot + scheme C；节点 containerd 指向 Harbor（insecure/CA 正确）。
@@ -48,7 +48,7 @@
 - [ ] 身份→RBAC 映射生效（组授权，不按人）。
 - [ ] 模式可组合（A/B/C），按客户规模选档。
 - [ ] GitOps 交付通道可用（Flux/ArgoCD）。
-- 验收：`make verify-tenant`（拟）：隔离用例 + 自助开通 + 配额/PSA 用例。
+- 验收：`make verify-tenant`：隔离用例 + 配额/PSA/RBAC/NetworkPolicy。
 
 ---
 

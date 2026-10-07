@@ -6,7 +6,7 @@ CI 将其打包为 OCI Artifact 推入 Harbor（`oci://harbor.../baokuaiyun/<nam
 ## 分类与现有目录映射
 | 分类 | 组件 | 现有实现（drill） |
 |---|---|---|
-| `infra/` | cilium, longhorn, cert-manager, kgateway, monitoring(prometheus/loki/blackbox), kyverno, sealed-secrets, velero | `kubernetes/`, `platform/monitoring/`, `platform/kyverno/`, `platform/velero/` |
+| `infra/` | cilium, **storage-host-zfs-iscsi / storage-longhorn**, cert-manager, kgateway, monitoring(prometheus/loki/blackbox), kyverno, sealed-secrets, velero | `kubernetes/`, `storage/`, `platform/monitoring/`, `platform/kyverno/`, `platform/velero/` |
 | `platform/` | harbor, gitlab(+runner), casdoor | `platform/harbor`, `platform/gitlab`, `platform/casdoor` |
 | `data/` | cnpg, redis, object-store(minio), crossplane | `platform/platform-data/`, `platform/gitlab/minio.yaml`, `infrastructure/crossplane/` |
 | `apps/` | 平台/演示应用 | （待定） |

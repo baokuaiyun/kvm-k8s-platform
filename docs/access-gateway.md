@@ -1,6 +1,7 @@
 # 生产同构入口：LB → Gateway → Harbor
 
 > 目标：演练与生产**同一套入口架构**——`LB → Gateway → Harbor(443, TLS)`。演练用 kgateway + 自签证书；生产换内网 SLB + 受信任证书。
+> 网络分层、地址规划、数据路径与三环境差异详见 [`network-architecture.md`](network-architecture.md)（本文只讲入口这一段）。
 
 ## 一、生产架构（正常做法）
 

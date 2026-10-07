@@ -72,10 +72,13 @@ nav:
   - 多租户架构: tenant-isolation-architecture.md
   - Makefile 设计: makefile-design.md
   - 镜像管道(本域 Harbor): image-pipeline.md
+  - 网络架构与 LB 设计: network-architecture.md
   - 生产同构入口(Gateway): access-gateway.md
   - Helm Chart 分发: helm-chart-distribution.md
   - ACR 镜像同步(旧): acr-image-sync.md
   - 存储规划(SC/PV/云盘): storage-plan.md
+  - 云盘数据方案(ZFS+iSCSI 云盘/计算分离): cloud-disk-data-solution.md
+  - 验收与证据(Proof): evidence-and-acceptance.md
   - Longhorn 引擎镜像迁移/恢复: longhorn-engine-image-migration.md
   - 应用数据与备份: application-data.md
   - 数据分级: data-classification.md

@@ -1,0 +1,74 @@
+# 告警中转适配器（可选）：Alertmanager generic webhook -> 钉钉群机器人
+# 用途：Alertmanager 无钉钉/企微原生格式；此适配器把 Alertmanager 的 webhook JSON
+#       转成钉钉 markdown。企微请用外部中转并设 ALERT_WEBHOOK_URL。
+# 由 make alert-adapter 渲染 ${...} 后 apply（需先设 ALERT_DINGTALK_WEBHOOK / _SECRET）。
+# 应用后：ALERT_WEBHOOK_ENABLED=1 ALERT_WEBHOOK_TYPE=dingtalk（留空 URL 会自动指向本 Service）。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alert-adapter-dingtalk-config
+  namespace: ${ALERT_NAMESPACE}
+data:
+  config.yml: |
+    targets:
+      default:
+        url: ${ALERT_DINGTALK_WEBHOOK}
+        secret: ${ALERT_DINGTALK_SECRET}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-adapter-dingtalk
+  namespace: ${ALERT_NAMESPACE}
+  labels:
+    app: alert-adapter-dingtalk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alert-adapter-dingtalk
+  template:
+    metadata:
+      labels:
+        app: alert-adapter-dingtalk
+    spec:
+      containers:
+      - name: adapter
+        image: ${ALERT_ADAPTER_IMAGE}
+        imagePullPolicy: IfNotPresent
+        args: ["--config.file=/etc/prometheus-webhook-dingtalk/config.yml"]
+        ports:
+        - name: http
+          containerPort: 8060
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8060
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus-webhook-dingtalk
+          readOnly: true
+        resources:
+          requests: { cpu: 20m, memory: 32Mi }
+          limits: { memory: 128Mi }
+      volumes:
+      - name: config
+        configMap:
+          name: alert-adapter-dingtalk-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alert-adapter-dingtalk
+  namespace: ${ALERT_NAMESPACE}
+  labels:
+    app: alert-adapter-dingtalk
+spec:
+  selector:
+    app: alert-adapter-dingtalk
+  ports:
+    - name: http
+      port: 8060
+      targetPort: 8060

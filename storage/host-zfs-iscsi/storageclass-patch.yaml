@@ -1,0 +1,19 @@
+# 驱动 patch：宿主 ZFS + iSCSI（democratic-csi）。契约字段（name/Retain/扩容/默认类）继承 base。
+# 若改 CSI 命名空间（CSI_NAMESPACE），同步改这里的 namespace。
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: app-storage
+provisioner: host-zfs-iscsi
+parameters:
+  csi.storage.k8s.io/fstype: ext4
+  csi.storage.k8s.io/provisioner-secret-name: democratic-csi-driver-config
+  csi.storage.k8s.io/provisioner-secret-namespace: democratic-csi
+  csi.storage.k8s.io/controller-publish-secret-name: democratic-csi-driver-config
+  csi.storage.k8s.io/controller-publish-secret-namespace: democratic-csi
+  csi.storage.k8s.io/controller-expand-secret-name: democratic-csi-driver-config
+  csi.storage.k8s.io/controller-expand-secret-namespace: democratic-csi
+  csi.storage.k8s.io/node-stage-secret-name: democratic-csi-driver-config
+  csi.storage.k8s.io/node-stage-secret-namespace: democratic-csi
+  csi.storage.k8s.io/node-publish-secret-name: democratic-csi-driver-config
+  csi.storage.k8s.io/node-publish-secret-namespace: democratic-csi

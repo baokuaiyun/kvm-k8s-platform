@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 include ../variables.mk
 
-.PHONY: monitoring agents alerts
+.PHONY: monitoring agents alerts alerts-print
 
 monitoring: ## 安装 Prometheus + Grafana + Alertmanager（持久化到规范 SC）
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
@@ -10,6 +10,9 @@ monitoring: ## 安装 Prometheus + Grafana + Alertmanager（持久化到规范 S
 	helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
 		-n monitoring --create-namespace \
 		--set alertmanager.enabled=true \
+		--set alertmanager.alertmanagerSpec.alertmanagerConfigSelector={} \
+		--set alertmanager.alertmanagerSpec.alertmanagerConfigNamespaceSelector={} \
+		--set alertmanager.alertmanagerSpec.alertmanagerConfigMatcherStrategy.type=None \
 		--set alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.storageClassName=$(STORAGE_CLASS) \
 		--set alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage=2Gi \
 		--set prometheus.prometheusSpec.retention=$(PROMETHEUS_RETENTION) \
@@ -34,5 +37,8 @@ agents: ## 安装 OTel / Blackbox / Loki / Promtail
 		--set singleBinary.persistence.size=$(LOKI_SIZE)
 	helm upgrade --install promtail grafana/promtail -n monitoring
 
-alerts: ## 应用告警规则
-	kubectl apply -f alerts.yaml
+alerts: ## 应用告警规则 + 渲染 AlertmanagerConfig（系统参数化）
+	bash apply-alerts.sh
+
+alerts-print: ## 只打印将要应用的 AlertmanagerConfig
+	bash apply-alerts.sh --print

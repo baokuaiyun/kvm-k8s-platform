@@ -1,0 +1,12 @@
+# [可选后端] Longhorn。副本数默认 2（drill）；多节点生产改 3。
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: app-storage
+provisioner: driver.longhorn.io
+parameters:
+  numberOfReplicas: "2"
+  staleReplicaTimeout: "30"
+  fsType: "ext4"
+  dataLocality: "best-effort"
+  disableRevisionCounter: "false"

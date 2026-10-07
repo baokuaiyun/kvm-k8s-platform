@@ -1,0 +1,19 @@
+# Flux 运行时信息（D2 模式）：由 postBuild.substituteFrom 注入到 tenants/* 的 ${...} 占位。
+# 逐集群/env 渲染；生产可由 Terraform 用 SSA 追加字段（如 CLUSTER_REGION），互不冲突。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flux-runtime-info
+  namespace: flux-system
+  labels:
+    toolkit.fluxcd.io/runtime: "true"
+    reconcile.fluxcd.io/watch: Enabled
+  annotations:
+    kustomize.toolkit.fluxcd.io/ssa: "Merge"
+data:
+  ENVIRONMENT: "drill"
+  CLUSTER_NAME: "all-in-one"
+  CLUSTER_DOMAIN: "test.baokuaiyun.com"
+  ARTIFACT_TAG: "latest"
+  ARTIFACT_SUBJECT_WORKFLOW: "ci-build-components"
+  ARTIFACT_SUBJECT_GIT_REF: "refs/heads/main"

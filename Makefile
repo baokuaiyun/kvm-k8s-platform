@@ -3,20 +3,38 @@
 # 用法: make help
 # =============================================================================
 SHELL := /bin/bash
+# 环境档位: drill | prod | enterprise —— 决定加载哪个 profile 覆盖
+# 优先级: G 默认(variables.mk) <- P 覆盖(profiles/<env>.env) <- S 密钥(acr.env)
+ENV ?= drill
 include variables.mk
+-include gitops/profiles/$(ENV).env
+
+# 单节点起步：cp-1 使用放大的 NODE_* 规格（其余 cp/worker 仍用 CP_*/WK_*）
+ifeq ($(SINGLE_NODE_SPEC),1)
+CP1_VCPU := $(NODE_VCPU)
+CP1_RAM  := $(NODE_RAM)
+CP1_DISK := $(NODE_DISK)
+else
+CP1_VCPU := $(CP_VCPU)
+CP1_RAM  := $(CP_RAM)
+CP1_DISK := $(CP_DISK)
+endif
 
 .PHONY: help init phase1 phase2 phase3 phase4 verify clean docs docs-build docs-down \
 	network-refresh dns-check vm-create vm-add-cp vm-add-worker \
 	k8s-common kube-vip k8s-init k8s-join k8s-install join-cp join-worker scale-out kubeconfig \
 	acr-prepare image-load image-preflight helm-images charts-pull charts-push-yunxiao charts-push-git yunxiao-repos idp \
-	kvm-init dirs network-create image-download \
-	cni storage storage-class cert security monitoring agents platform harbor gitlab platform-data gitops flux-operator tenants operators images \
+	kvm-init dirs network-create image-download host-storage post-reboot-install \
+	reset-cluster clean-all rebuild rebuild-core purge-host-storage \
+	cni storage storage-longhorn csi-storage csi-preload storage-class cert security monitoring agents alerts alerts-print alert-adapter platform harbor gitlab platform-data gitops flux-operator tenants operators images \
 	resolve-artifacts sync-artifacts publish-artifacts verify-bootstrap mgmt-bootstrap member-bootstrap \
-	build-component render-stack \
-	backup-upgrade velero verify-cluster verify-monitoring verify-apps verify-storage app-backup app-restore
+	build-component render-stack drill-expand-pvc auto-expand auto-expand-once \
+	backup-upgrade velero verify-cluster verify-monitoring verify-apps verify-storage evidence app-backup app-restore tf-init tf-plan tf-apply tf-fmt tf-validate repo-split \
+	verify-data verify-tenant
 
 DOCS_PORT ?= 8000
 DOCS_IMAGE ?= squidfunk/mkdocs-material:latest
+TF_ENV ?= drill
 
 help: ## 显示所有可用目标
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -24,11 +42,11 @@ help: ## 显示所有可用目标
 
 ## ============ 阶段编排 ============
 init: kvm-init network-create dirs image-download ## 初始化 KVM 环境
-phase1: init vm-create acr-prepare charts-pull k8s-common image-load image-preflight k8s-init k8s-join kube-vip cni storage storage-class cert ## 阶段1: 基础集群创建（镜像/chart 先就绪）
-phase2: security idp monitoring agents          ## 阶段2: 安全/身份及运营监控
+phase1: init host-storage vm-create acr-prepare charts-pull k8s-common image-load image-preflight k8s-init k8s-join kube-vip cni storage storage-class cert ## 阶段1: 基础集群创建（单节点起步；镜像/chart/存储先就绪）
+phase2: security idp monitoring agents alerts auto-expand ## 阶段2: 安全/身份及运营监控 + 告警/自动扩容
 phase3: operators platform-data platform gitops tenants images ## 阶段3: Operator→共享数据→应用+GitOps
 phase4: backup-upgrade                          ## 阶段4: 持续升级维护
-verify: verify-cluster verify-monitoring verify-apps verify-storage ## 全量验收
+verify: verify-cluster verify-monitoring verify-apps verify-storage verify-data verify-tenant ## 全量验收
 
 ## ============ 阶段 1: 基础集群 ============
 kvm-init: ## 安装 KVM 工具链
@@ -75,21 +93,35 @@ image-download: ## 下载 Debian 13 云镜像
 	fi
 	qemu-img info "$(IMAGE_DIR)/$(BASE_IMAGE)"
 
-vm-create: ## 创建起步节点 (1CP+1W)
-	@echo "[+] 创建起步控制面 (前 $(CP_INIT_COUNT) 台)..."
+host-storage: ## 宿主云盘层：ZFS 池 + iSCSI target + MinIO（幂等，见 docs/cloud-disk-data-solution.md）
+	@echo "[+] 初始化宿主存储层（ZFS pool=$(ZFS_POOL), disk=$(HOST_DATA_DISK)）..."
+	bash kvm/scripts/host-storage.sh
+
+post-reboot-install: ## 安装“重启后自动收尾”systemd 单元（enable）
+	@echo "[+] 安装 post-reboot-finish.service（ROOT=$(CURDIR)）..."
+	sed "s|__ROOT__|$(CURDIR)|g" kvm/post-reboot-finish.service > /etc/systemd/system/post-reboot-finish.service
+	systemctl daemon-reload
+	systemctl enable post-reboot-finish.service
+
+vm-create: ## 创建起步节点（单节点 1CP，规格 NODE_*）
+	@echo "[+] 创建起步控制面 (前 $(CP_INIT_COUNT) 台；single_node_spec=$(SINGLE_NODE_SPEC))..."
 	@i=1; for ip in $(wordlist 1,$(CP_INIT_COUNT),$(CP_IPS)); do \
 		name=$$(echo $(CP_NAMES) | cut -d' ' -f$$i); \
 		mac=$$(echo $(CP_MACS) | cut -d' ' -f$$i); \
-		bash kvm/scripts/create-vm.sh $$name $$ip $$mac $(CP_VCPU) $(CP_RAM) $(CP_DISK); \
+		bash kvm/scripts/create-vm.sh $$name $$ip $$mac $(CP1_VCPU) $(CP1_RAM) $(CP1_DISK); \
 		i=$$((i+1)); \
 	done
-	@echo "[+] 创建起步 Worker (前 $(WK_INIT_COUNT) 台)..."
-	@i=1; for ip in $(wordlist 1,$(WK_INIT_COUNT),$(WK_IPS)); do \
-		name=$$(echo $(WK_NAMES) | cut -d' ' -f$$i); \
-		mac=$$(echo $(WK_MACS) | cut -d' ' -f$$i); \
-		bash kvm/scripts/create-vm.sh $$name $$ip $$mac $(WK_VCPU) $(WK_RAM) $(WK_DISK); \
-		i=$$((i+1)); \
-	done
+	@if [ "$(WK_INIT_COUNT)" -gt 0 ]; then \
+		echo "[+] 创建起步 Worker (前 $(WK_INIT_COUNT) 台)..."; \
+		i=1; for ip in $(wordlist 1,$(WK_INIT_COUNT),$(WK_IPS)); do \
+			name=$$(echo $(WK_NAMES) | cut -d' ' -f$$i); \
+			mac=$$(echo $(WK_MACS) | cut -d' ' -f$$i); \
+			bash kvm/scripts/create-vm.sh $$name $$ip $$mac $(WK_VCPU) $(WK_RAM) $(WK_DISK); \
+			i=$$((i+1)); \
+		done; \
+	else \
+		echo "[=] WK_INIT_COUNT=0：单节点起步，不创建 worker（扩容用 make scale-out）"; \
+	fi
 	virsh list --all
 
 vm-add-cp: ## 新增控制面节点: make vm-add-cp IDX=2
@@ -101,7 +133,7 @@ vm-add-cp: ## 新增控制面节点: make vm-add-cp IDX=2
 		$(CP_VCPU) $(CP_RAM) $(CP_DISK)
 
 vm-add-worker: ## 新增 Worker 节点: make vm-add-worker IDX=2
-	@[ -n "$(IDX)" ] || { echo "用法: make vm-add-worker IDX=<序号 2>"; exit 1; }
+	@[ -n "$(IDX)" ] || { echo "用法: make vm-add-worker IDX=<序号 1..2>"; exit 1; }
 	@bash kvm/scripts/create-vm.sh \
 		"$$(echo $(WK_NAMES) | cut -d' ' -f$(IDX))" \
 		"$$(echo $(WK_IPS)   | cut -d' ' -f$(IDX))" \
@@ -182,16 +214,20 @@ join-worker: ## Worker 扩容: make join-worker IDX=2
 	@[ -n "$(IDX)" ] || { echo "用法: make join-worker IDX=<序号 2>"; exit 1; }
 	bash kubernetes/scripts/join-worker.sh "$$(echo $(WK_NAMES) | cut -d' ' -f$(IDX))"
 
-scale-out: ## 扩容到 3CP+2W (需先跑过 k8s-install)
-	@echo "[+] 新增 cp-2/cp-3/worker-2..."
+scale-out: ## 扩容到 3CP+2W（从单节点起步补齐 worker-1/worker-2；需先跑过 k8s-install）
+	@echo "[+] 新增 cp-2/cp-3..."
 	$(MAKE) vm-add-cp IDX=2
 	$(MAKE) vm-add-cp IDX=3
+	@echo "[+] 新增 worker-1/worker-2..."
+	$(MAKE) vm-add-worker IDX=1
 	$(MAKE) vm-add-worker IDX=2
 	@echo "[+] 加入控制面 cp-2 / cp-3..."
 	bash kubernetes/scripts/join-control-plane.sh $(word 2,$(CP_NAMES))
 	bash kubernetes/scripts/join-control-plane.sh $(word 3,$(CP_NAMES))
 	@echo "[+] 加入 Worker..."
+	bash kubernetes/scripts/join-worker.sh $(word 1,$(WK_NAMES))
 	bash kubernetes/scripts/join-worker.sh $(word 2,$(WK_NAMES))
+	@echo "[!] 提示：多节点后如需提升存储冗余，重新按后端调整（云盘=barman/副本；Longhorn=LONGHORN_REPLICAS make storage-longhorn）"
 
 cni: ## 安装 Cilium CNI
 	@echo "[+] 安装 Cilium..."
@@ -199,9 +235,26 @@ cni: ## 安装 Cilium CNI
 	helm repo update
 	sed 's|__IMAGE_REPOSITORY__|$(IMAGE_REPOSITORY)|g' kubernetes/configs/cilium-values.yaml > /tmp/cilium-values.yaml
 	helm upgrade --install cilium $(HELM_CILIUM) -n kube-system \
-		-f /tmp/cilium-values.yaml
+		-f /tmp/cilium-values.yaml \
+		$(if $(filter 1,$(SINGLE_NODE_SPEC)),--set operator.replicas=1,)
 
-storage: ## 安装 Longhorn 存储（含生产化 overlay：副本/备份目标/控制面调度）
+storage: ## 安装存储后端（按 STORAGE_BACKEND：host-zfs-iscsi|longhorn|alicloud）
+	@echo "[+] 安装存储后端（backend=$(STORAGE_BACKEND)）..."
+	@case "$(STORAGE_BACKEND)" in \
+	  host-zfs-iscsi) $(MAKE) csi-storage ;; \
+	  longhorn)       $(MAKE) storage-longhorn ;; \
+	  alicloud)       echo "[=] alicloud：云盘 CSI 需预先安装（见 docs/alicloud-deployment.md），跳过" ;; \
+	  *)              echo "[!] 未知 STORAGE_BACKEND=$(STORAGE_BACKEND)"; exit 1 ;; \
+	esac
+
+csi-storage: ## 安装宿主 ZFS+iSCSI 云盘 CSI（democratic-csi，模拟云盘）
+	@echo "[+] 安装 democratic-csi（host-zfs-iscsi，pool=$(ZFS_POOL)）..."
+	HELM_DEMOCRATIC_CSI='$(HELM_DEMOCRATIC_CSI)' bash storage/host-zfs-iscsi/deploy-csi.sh
+
+csi-preload: ## 预载 democratic-csi 所需镜像到节点（离线/代理受限环境）
+	bash storage/host-zfs-iscsi/preload-images.sh
+
+storage-longhorn: ## [可选后端] 安装 Longhorn 存储（副本/备份目标/控制面调度）
 	@echo "[+] 安装 Longhorn（replicas=$(LONGHORN_REPLICAS), backupTarget=$(BACKUP_TARGET)）..."
 	helm repo add longhorn https://charts.longhorn.io 2>/dev/null || true
 	helm repo update
@@ -239,7 +292,10 @@ monitoring: ## 安装监控栈
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
 	helm repo update
 	helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
-		-n monitoring --create-namespace
+		-n monitoring --create-namespace \
+		--set alertmanager.alertmanagerSpec.alertmanagerConfigSelector={} \
+		--set alertmanager.alertmanagerSpec.alertmanagerConfigNamespaceSelector={} \
+		--set alertmanager.alertmanagerSpec.alertmanagerConfigMatcherStrategy.type=None
 
 agents: ## 安装可观测性 agent
 	@echo "[+] 安装 OTel / Blackbox / Loki..."
@@ -249,6 +305,40 @@ agents: ## 安装可观测性 agent
 	helm upgrade --install blackbox prometheus-community/prometheus-blackbox-exporter -n monitoring
 	helm upgrade --install loki grafana/loki -n monitoring
 	helm upgrade --install promtail grafana/promtail -n monitoring
+
+alerts: ## 应用告警规则 + 渲染 AlertmanagerConfig（系统参数化，见 docs/parameters.md）
+	@echo "[+] 应用告警规则与通知路由..."
+	bash observability/apply-alerts.sh
+
+auto-expand: ## 部署 PV 云盘自动扩容控制器（CronJob；默认 dry-run，见 docs/cloud-disk-data-solution.md §5）
+	@echo "[+] 部署 PV 自动扩容控制器（enabled=$(PV_AUTOSCALER_ENABLED) dry_run=$(PV_AUTOSCALER_DRY_RUN)）..."
+	@if [ "$(PV_AUTOSCALER_ENABLED)" != "1" ]; then echo "[=] PV_AUTOSCALER_ENABLED≠1，跳过"; exit 0; fi
+	kubectl create namespace $(PV_AUTOSCALER_NS) --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+	kubectl -n $(PV_AUTOSCALER_NS) create configmap pvc-autoscaler-script \
+		--from-file=auto-expand-pvc.sh=scripts/auto-expand-pvc.sh \
+		--dry-run=client -o yaml | kubectl apply -f -
+	envsubst '$${PV_AUTOSCALER_NS} $${PV_AUTOSCALER_DRY_RUN} $${PV_AUTOSCALER_THRESHOLD} \
+		$${PV_AUTOSCALER_FACTOR} $${PV_AUTOSCALER_MIN_STEP} $${PV_AUTOSCALER_MAX_SIZE} \
+		$${PV_AUTOSCALER_COOLDOWN_MIN} $${PV_AUTOSCALER_SCHEDULE} $${PV_AUTOSCALER_NAMESPACES} \
+		$${PV_AUTOSCALER_EXCLUDE} $${ALERT_NAMESPACE} $${PV_AUTOSCALER_IMAGE}' \
+		< kubernetes/configs/pvc-autoscaler.yaml | kubectl apply -f -
+
+auto-expand-once: ## 本机执行一次自动扩容扫描（DRY_RUN=1 默认；DRY_RUN=0 实际扩容）
+	@echo "[+] 运行一次 PV 自动扩容扫描（DRY_RUN=$(or $(DRY_RUN),$(PV_AUTOSCALER_DRY_RUN))）..."
+	DRY_RUN="$(or $(DRY_RUN),$(PV_AUTOSCALER_DRY_RUN))" bash scripts/auto-expand-pvc.sh
+
+alerts-print: ## 只打印将要应用的 AlertmanagerConfig（不 apply）
+	@bash observability/apply-alerts.sh --print
+
+alert-adapter: ## 部署钉钉告警适配器（可选；需 ALERT_DINGTALK_WEBHOOK/_SECRET）
+	@set -a; [ -f ops.env ] && . ./ops.env; set +a; \
+	if [ -z "$${ALERT_DINGTALK_WEBHOOK:-}" ]; then echo "[!] 未设 ALERT_DINGTALK_WEBHOOK（见 ops.env.example）"; exit 1; fi; \
+	NS="$${ALERT_NAMESPACE:-$(ALERT_NAMESPACE)}"; IMG="$${ALERT_ADAPTER_IMAGE:-$(ALERT_ADAPTER_IMAGE)}"; \
+	echo "[+] 部署钉钉适配器 -> ns $$NS..."; \
+	kubectl create namespace "$$NS" --dry-run=client -o yaml | kubectl apply -f - >/dev/null; \
+	ALERT_NAMESPACE="$$NS" ALERT_ADAPTER_IMAGE="$$IMG" \
+	envsubst '$${ALERT_NAMESPACE} $${ALERT_ADAPTER_IMAGE} $${ALERT_DINGTALK_WEBHOOK} $${ALERT_DINGTALK_SECRET}' \
+		< kubernetes/configs/alert-adapters.yaml | kubectl apply -f -
 
 ## ============ 阶段 3: 应用 + GitOps ============
 platform-data: ## 部署共享 PG/Redis（CNPG + redis-operator；需先 make operators）
@@ -418,6 +508,38 @@ verify-storage: ## 验证存储契约/副本/备份目标/备份时效
 	@echo "[+] 存储与备份验收..."
 	bash scripts/verify-storage.sh
 
+verify-data: ## 验证数据平面（CNPG/Redis/备份/端点）
+	@echo "[+] 数据平面验收..."
+	bash scripts/verify-data.sh
+
+verify-tenant: ## 验证租户平面（Mode A：配额/PSA/NetPol/RBAC/隔离）
+	@echo "[+] 租户平面验收..."
+	bash scripts/verify-tenant.sh
+
+drill-expand-pvc: ## 云盘在线扩容演练（建 PVC→写数→扩容量→校验无损）
+	@echo "[+] 在线扩容演练（backend=$(STORAGE_BACKEND)）..."
+	bash scripts/drill-expand-pvc.sh
+
+evidence: ## 采集验收证据包（report.json/md）: make evidence [ENV=drill] [CHECKS="nodes storage_verify"]
+	@echo "[+] 采集验收证据（ENV=$(or $(ENV),$(FLEET_ENV))）..."
+	ENV='$(or $(ENV),$(FLEET_ENV))' CHECKS='$(CHECKS)' bash scripts/evidence.sh
+
+## ============ Terraform（基础设施引导） ============
+tf-init: ## terraform init
+	terraform -chdir=terraform/envs/$(TF_ENV) init
+tf-validate: ## terraform validate
+	terraform -chdir=terraform/envs/$(TF_ENV) validate
+tf-plan: ## terraform plan: make tf-plan TF_ENV=drill
+	terraform -chdir=terraform/envs/$(TF_ENV) plan
+tf-apply: ## terraform apply: make tf-apply TF_ENV=drill
+	terraform -chdir=terraform/envs/$(TF_ENV) apply
+tf-fmt: ## terraform fmt
+	terraform fmt -recursive terraform
+
+repo-split: ## 按 gitops/repo-split.yaml 生成/刷新三仓拆分脚本（不自动推送）
+	@echo "[+] 生成三分仓拆分脚本：scripts/repo-split.sh（只生成本地三仓工作区，不推送）"
+	bash scripts/repo-split.sh --dry-run
+
 app-backup: ## 应用级一致性备份（Harbor/GitLab/PG）
 	@echo "[+] 应用数据一致性备份..."
 	bash platform/backup/backup.sh
@@ -439,7 +561,25 @@ docs-build: ## 构建静态文档到 site/
 docs-down: ## 停止文档预览容器
 	@docker ps -q --filter "ancestor=$(DOCS_IMAGE)" | xargs -r docker stop
 
-## ============ 清理 ============
-clean: ## 销毁全部 VM 和资源
-	@echo "[!] 销毁所有 VM..."
-	bash kvm/scripts/destroy-all.sh
+## ============ 删除 / 重建 ============
+reset-cluster: ## 删除全部 VM（保留网络+宿主存储+缓存），用于重建
+	@echo "[+] 重置集群：删除全部 VM（保留网络与宿主 ZFS/MinIO/缓存）..."
+	KEEP_NETWORK=1 PURGE_HOST_STORAGE=0 FORCE=1 bash kvm/scripts/destroy-all.sh
+
+clean: ## 删除全部 VM（保留网络与宿主存储）
+	@echo "[+] 删除全部 VM（保留网络与宿主存储）..."
+	KEEP_NETWORK=1 PURGE_HOST_STORAGE=0 bash kvm/scripts/destroy-all.sh
+
+clean-all: ## 删除全部 VM + 网络（保留宿主存储）
+	@echo "[+] 删除全部 VM 与网络（保留宿主存储）..."
+	KEEP_NETWORK=0 PURGE_HOST_STORAGE=0 bash kvm/scripts/destroy-all.sh
+
+purge-host-storage: ## [危险] 清除宿主 ZFS 池与 MinIO（需二次确认）
+	@echo "[!] 清除宿主存储层..."
+	bash kvm/scripts/purge-host-storage.sh
+
+rebuild: reset-cluster phase1 mgmt-bootstrap ## 删除→重建→平台可用（单节点起步）
+	@echo "[+] 重建完成（集群 + 平台）"
+
+rebuild-core: reset-cluster phase1 ## 删除→重建（仅集群底座 + 存储）
+	@echo "[+] 重建完成（裸集群）"

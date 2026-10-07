@@ -73,6 +73,43 @@ spec:
         severity: critical
       annotations:
         summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} 使用率 >95%，即将写满"
+    # 预测 24h 内写满（基于 6h 可用空间线性外推）
+    - alert: PVCPredictFull
+      expr: |
+        predict_linear(kubelet_volume_stats_available_bytes[6h], 24 * 3600) < 0
+          and kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes > 0.60
+      for: 30m
+      labels:
+        severity: warning
+      annotations:
+        summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} 预计 24h 内写满"
+    # inode 将满（文件数密集卷，如 registry/gitaly）
+    - alert: PVCInodesNearlyFull
+      expr: |
+        kubelet_volume_stats_inodes_used / kubelet_volume_stats_inodes > 0.85
+      for: 15m
+      labels:
+        severity: warning
+      annotations:
+        summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} inode 使用率 >85%"
+    # 扩容请求已下发但卷容量未跟上（CSI resizer 卡住 / 需重启 Pod 完成 fs resize）
+    - alert: PVCResizeStuck
+      expr: |
+        kube_persistentvolumeclaim_resource_requests_storage_bytes
+          > on(namespace, persistentvolumeclaim) kubelet_volume_stats_capacity_bytes
+      for: 30m
+      labels:
+        severity: warning
+      annotations:
+        summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} 扩容未生效（requested > capacity）"
+    # PV 进入 Failed 阶段
+    - alert: PersistentVolumeFailed
+      expr: kube_persistentvolume_status_phase{phase="Failed"} == 1
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "PV {{ $labels.persistentvolume }} 状态 Failed"
     # ---- Longhorn 卷健康（0=unknown,1=healthy,2=degraded,3=faulted）----
     - alert: LonghornVolumeDegraded
       expr: longhorn_volume_robustness == 2

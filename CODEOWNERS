@@ -12,6 +12,7 @@
 /storage/              @platform-team
 /kvm/                  @platform-team
 /docs/                 @platform-team
+/terraform/            @platform-team
 
 # 开发面（未来迁至独立"开发仓"）
 /apps/                 @app-teams

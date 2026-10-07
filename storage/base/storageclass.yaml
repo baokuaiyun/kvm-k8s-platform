@@ -1,0 +1,14 @@
+# 规范 StorageClass 契约（公共字段，驱动无关）
+# 具体驱动（provisioner/parameters/bindingMode）由各后端 overlay 的 patch 注入。
+# 契约：SC 名 app-storage、Retain（防误删）、可在线扩容、默认 SC。
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: app-storage
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: unmanaged.invalid   # 占位；overlay 必须覆盖
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters: {}

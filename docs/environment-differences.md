@@ -1,6 +1,7 @@
 # 环境差异说明：本机 KVM 演练 vs 阿里云生产
 
 > 核心原则：**同一套集群方案，两套环境落地**。演练环境跑通验证后，生产环境复用全部配置，仅替换环境相关变量。
+> 网络分层、LB 架构与数据路径详见 [`network-architecture.md`](network-architecture.md)。
 
 ## 一、总体策略
 
@@ -24,6 +25,10 @@
 | **域名** | `*.test.baokuaiyun.com` | `*.baokuaiyun.com` | 环境隔离 |
 | **证书** | 自签名（演练够用） | Let's Encrypt DNS-01 | 生产必须合法证书 |
 | **入口** | NodePort + 端口转发 | SLB 负载均衡 | 生产用 SLB |
+| **LB IP 机制** | Cilium LB IPAM + L2(`LB_IP_MODE=cilium-l2`) | CCM 自动建 SLB(`LB_IP_MODE=slb`) | 裸机可 `l2`/`bgp` |
+| **CP 端点** | kube-vip 持 `CP_VIP` | 内网 SLB 作 controlPlaneEndpoint | 同 KVM |
+| **节点 IP 来源** | 静态 DHCP(`NODE_IP_MODE=static`) | VPC ENI 分配(`cloud`) | 静态/DHCP |
+| **入口主 IP** | `GATEWAY_VIP=192.168.124.31`(L2 公告) | 空 → SLB 回写 | 池中分配 |
 | **镜像源** | Harbor Proxy Cache | 阿里云内网源 + Harbor | 生产可走阿里云内网 |
 | **高可用** | 3CP 同宿主机（宿主单点） | 3CP 跨可用区 | 生产真正 HA |
 | **备份** | 本地目录 | OSS 异地 | 生产异地容灾 |

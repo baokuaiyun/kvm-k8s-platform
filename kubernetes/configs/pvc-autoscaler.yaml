@@ -1,0 +1,113 @@
+# PV 云盘自动扩容控制器（CronJob + RBAC + 配置）
+# 由 Makefile 目标 auto-expand 渲染 ${PV_AUTOSCALER_*} 后 apply；
+# 脚本以 ConfigMap pvc-autoscaler-script 挂载（由 make auto-expand 从 scripts/auto-expand-pvc.sh 生成）。
+# 默认 dry-run（PV_AUTOSCALER_DRY_RUN=1）只写推荐注解。详见 docs/cloud-disk-data-solution.md §5。
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${PV_AUTOSCALER_NS}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pvc-autoscaler
+  namespace: ${PV_AUTOSCALER_NS}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pvc-autoscaler
+rules:
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["get", "list", "watch", "patch", "update"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["services", "services/proxy"]
+  verbs: ["get"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pvc-autoscaler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pvc-autoscaler
+subjects:
+- kind: ServiceAccount
+  name: pvc-autoscaler
+  namespace: ${PV_AUTOSCALER_NS}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pvc-autoscaler-config
+  namespace: ${PV_AUTOSCALER_NS}
+data:
+  DRY_RUN: "${PV_AUTOSCALER_DRY_RUN}"
+  THRESHOLD: "${PV_AUTOSCALER_THRESHOLD}"
+  FACTOR: "${PV_AUTOSCALER_FACTOR}"
+  MIN_STEP: "${PV_AUTOSCALER_MIN_STEP}"
+  MAX_SIZE: "${PV_AUTOSCALER_MAX_SIZE}"
+  COOLDOWN_MIN: "${PV_AUTOSCALER_COOLDOWN_MIN}"
+  ALERT_NAMESPACE: "${ALERT_NAMESPACE}"
+  PV_AUTOSCALER_NAMESPACES: "${PV_AUTOSCALER_NAMESPACES}"
+  PV_AUTOSCALER_EXCLUDE: "${PV_AUTOSCALER_EXCLUDE}"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pvc-autoscaler
+  namespace: ${PV_AUTOSCALER_NS}
+spec:
+  schedule: "${PV_AUTOSCALER_SCHEDULE}"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          serviceAccountName: pvc-autoscaler
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+          containers:
+          - name: autoscaler
+            image: ${PV_AUTOSCALER_IMAGE}
+            imagePullPolicy: IfNotPresent
+            command: ["/bin/bash", "/scripts/auto-expand-pvc.sh"]
+            env:
+            - name: HOME
+              value: /tmp
+            envFrom:
+            - configMapRef:
+                name: pvc-autoscaler-config
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          volumes:
+          - name: script
+            configMap:
+              name: pvc-autoscaler-script
+              defaultMode: 0755
+          - name: tmp
+            emptyDir: {}

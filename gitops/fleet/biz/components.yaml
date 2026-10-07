@@ -2,7 +2,7 @@
 mode: biz
 components:
   - cilium
-  - longhorn
+  - storage
   - cert-manager
   - kgateway
   - flux

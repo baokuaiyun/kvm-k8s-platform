@@ -20,6 +20,17 @@ IMAGE_DIR="${DATA_DIR}/images"
 DISK_DIR="${DATA_DIR}/disks"
 SEED_DIR="${DATA_DIR}/seeds"
 BASE_IMAGE="${IMAGE_DIR}/debian-13-generic-amd64.qcow2"
+DISK_IMG="${DISK_DIR}/${NAME}.qcow2"
+
+# 幂等：VM 或磁盘已存在则跳过（重建用 make reset-cluster 先清理）
+if virsh dominfo "$NAME" >/dev/null 2>&1; then
+  echo "[=] VM 已存在，跳过: ${NAME}（如需重建先执行 make reset-cluster）"
+  exit 0
+fi
+if [ -f "$DISK_IMG" ]; then
+  echo "[=] 磁盘已存在，跳过: ${DISK_IMG}（如需重建先执行 make reset-cluster）"
+  exit 0
+fi
 
 # 检查依赖
 command -v cloud-localds >/dev/null 2>&1 || { echo "[!] 缺少 cloud-localds (apt install cloud-image-utils)"; exit 1; }

@@ -13,21 +13,24 @@
 | worker 磁盘 | 50G → 90G | Longhorn/PG/Harbor 卷容量不足 |
 | worker 内存 | 4G → 6G | CNG + 监控栈内存不足（`virsh setmaxmem/setmem --config`，需关机） |
 | Longhorn 副本 | 卷降为 `numberOfReplicas=1`（容量受限） | 仅 2 存储节点 + 50G 盘 |
-| 默认 StorageClass | 应用 `app-storage`（`storage/longhorn/storageclass.yaml`） | 文档规范 SC；**既有 PVC 仍在 `longhorn`**（SC 不可变） |
+| 默认 StorageClass | `app-storage` 由 **Kustomize**（`storage/base` + `storage/<backend>` patch）管理，drill 后端 `host-zfs-iscsi` | 契约集中在 base；换驱动只改 `STORAGE_BACKEND` |
 | Harbor 卷 | 扩到 30G；registry FS 在线扩容 | 推送大量镜像后写满 |
 | Harbor 自签 CA | 装入宿主机信任（`/usr/local/share/ca-certificates/harbor-test-ca.crt`） | `helm push OCI` 校验 TLS |
 | gitlab/grafana DNS | libvirt dnsmasq `host-record` + 宿主 `/etc/hosts` | 入口域名解析 |
+| 起步形态/存储 | **单节点起步**（`WK_INIT_COUNT=0`，cp-1 去污点）+ **宿主 ZFS+iSCSI 云盘方案**（`STORAGE_BACKEND=host-zfs-iscsi`，Longhorn 降为可选）| 云盘/计算分离、删集群可重现，见 `docs/cloud-disk-data-solution.md` |
 
 ## 二、已实现且验证
 
 | 阶段 | 项 | 验证方式 |
 |---|---|---|
 | 1 | KVM/VM/kubeadm 5 节点 HA | `kubectl get nodes` 5 Ready；etcd 3 成员 |
-| 1 | Cilium / Longhorn / cert-manager / kube-vip | Pod Running |
+| 1 | **单节点起步**（`WK_INIT_COUNT=0`，cp-1 自动去污点，`NODE_*` 规格） | `kubectl get nodes` 1 Ready；`describe node` 无 control-plane 污点 |
+| 1 | **云盘/计算分离存储**（宿主 ZFS+iSCSI+democratic-csi；`app-storage`） | PVC Bound；在线扩容 1→3Gi 数据无损；`VolumeSnapshot readyToUse=true`；`make verify-storage` 通过 |
+| 1 | Cilium / cert-manager / kube-vip（存储改用 host-zfs-iscsi，Longhorn 降为可选） | Pod Running |
 | 1 | kgateway + 自签通配证书 `*.test.baokuaiyun.com` | Gateway PROGRAMMED；Harbor 443 可达 |
 | 1 | 镜像管道（Harbor 单项目/robot/scheme C/containerd 指向 Harbor） | 节点 `crictl pull` 成功 |
-| 3 | platform-data（CNPG `platform-pg` 三库 + Redis） | Cluster/Database Ready |
-| 3 | Harbor（外置 PG/Redis + 网关） | `ping` 200；helm 状态 deployed |
+| 3 | platform-data（CNPG `platform-pg` 三库 + Redis；单节点，PVC 走 `app-storage`） | Cluster/Database Ready；`make verify-data` 通过 |
+| 3 | Harbor（外置 PG/Redis；clusterIP 起，core `Pong`） | helm 状态 deployed；Pod Running（对外网关 `kgateway` 待镜像预载）|
 | 3 | GitLab route C（Operator 3.4.1 + CNG CE 19.4.1） | CR Running；登录页 200 |
 | 3 | Casdoor IdP | Pod 健康；网关访问 200 |
 | 2 | 安全基线（Mode A 租户 + PSA + Quota/LimitRange + CiliumNetworkPolicy） | `team-a/team-b` 就绪；privileged Pod 被拒 |

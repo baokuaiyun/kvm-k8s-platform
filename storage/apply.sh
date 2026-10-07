@@ -1,29 +1,36 @@
 #!/usr/bin/env bash
-# 应用规范 StorageClass（app-storage）到集群
-#   STORAGE_BACKEND=longhorn  -> storage/longhorn/storageclass.yaml（drill）
-#   STORAGE_BACKEND=alicloud  -> storage/alicloud/storageclass.yaml（prod）
-# 并创建 Longhorn 备份目标凭据 Secret（S3/OSS 需要；NFS 可留空）
+# 应用规范 StorageClass（app-storage）到集群——Kustomize：base 契约 + 每驱动 patch
+#   STORAGE_BACKEND=host-zfs-iscsi -> storage/host-zfs-iscsi（drill 云盘模拟，默认；含 VolumeSnapshotClass）
+#   STORAGE_BACKEND=longhorn       -> storage/longhorn（可选后端）
+#   STORAGE_BACKEND=alicloud       -> storage/alicloud（prod）
+# 换驱动只改 STORAGE_BACKEND；契约字段（名/Retain/扩容/默认类）在 storage/base。
+# 详见 docs/storage-plan.md、docs/cloud-disk-data-solution.md
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-BACKEND="${STORAGE_BACKEND:-longhorn}"
+BACKEND="${STORAGE_BACKEND:-host-zfs-iscsi}"
 SC="${STORAGE_CLASS:-app-storage}"
 REPLICAS="${LONGHORN_REPLICAS:-2}"
 
 case "$BACKEND" in
-  longhorn|alicloud) ;;
-  *) echo "[!] 未知 STORAGE_BACKEND=$BACKEND（longhorn|alicloud）"; exit 1 ;;
+  host-zfs-iscsi|longhorn|alicloud) ;;
+  *) echo "[!] 未知 STORAGE_BACKEND=$BACKEND（host-zfs-iscsi|longhorn|alicloud）"; exit 1 ;;
 esac
-
-SRC="$DIR/$BACKEND/storageclass.yaml"
-[ -f "$SRC" ] || { echo "[!] 缺少 $SRC"; exit 1; }
+[ -f "$DIR/$BACKEND/kustomization.yaml" ] || { echo "[!] 缺少 $DIR/$BACKEND/kustomization.yaml"; exit 1; }
 
 command -v kubectl >/dev/null 2>&1 || { echo "[!] 需要 kubectl"; exit 1; }
 
-echo "[+] 应用 StorageClass ${SC}（backend=${BACKEND}, longhorn_replicas=${REPLICAS}）"
-sed -e "s|__STORAGE_CLASS__|${SC}|g" \
-    -e "s|__LONGHORN_REPLICAS__|${REPLICAS}|g" \
-    "$SRC" | kubectl apply -f -
+echo "[+] 应用 StorageClass ${SC}（backend=${BACKEND}，Kustomize base+patch）"
+# StorageClass 的 parameters 不可变：apply 失败则删除重建（Retain 策略下不动 PVC/PV）
+if ! kubectl apply -k "$DIR/$BACKEND" 2>/tmp/sc-apply.err; then
+  if grep -q "updates to parameters are forbidden\|field is immutable" /tmp/sc-apply.err; then
+    echo "[=] StorageClass parameters 不可变 → 删除并重建 ${SC}"
+    kubectl delete sc "$SC" --ignore-not-found >/dev/null
+    kubectl apply -k "$DIR/$BACKEND"
+  else
+    cat /tmp/sc-apply.err >&2; exit 1
+  fi
+fi
 
 if [ "$BACKEND" = "longhorn" ]; then
   # 备份目标凭据：NFS 环境可为空 Secret；S3/OSS 由环境变量注入

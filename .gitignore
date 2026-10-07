@@ -5,6 +5,7 @@ site/
 # ===== 环境/密钥 =====
 .env
 acr.env
+ops.env
 *.secret
 *.key
 *.pem
@@ -31,5 +32,20 @@ __pycache__/
 .vscode/
 *.swp
 
+# ===== 工具缓存（helm 等）=====
+.config/
+
 # GitOps 生成物（lock）
 gitops/locks/
+
+# ===== 验收证据（生成物，保留 README）=====
+evidence/*
+!evidence/README.md
+
+# ===== Terraform =====
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform.lock.hcl
+

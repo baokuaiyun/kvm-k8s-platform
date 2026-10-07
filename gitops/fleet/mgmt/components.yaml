@@ -2,7 +2,7 @@
 mode: mgmt
 components:
   - cilium
-  - longhorn
+  - storage
   - cert-manager
   - kgateway
   - cloudnative-pg

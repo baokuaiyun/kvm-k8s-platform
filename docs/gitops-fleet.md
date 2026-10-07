@@ -167,7 +167,8 @@ spec:
 | GHCR | **Harbor**（单一源） |
 | cosign keyless(GitHub OIDC) | **key-based cosign**（离线）；生产可换 GitLab OIDC |
 | 三仓（fleet/infra/apps） | **单仓**（组件优先 + 薄模式；CODEOWNERS/CI paths 模拟隔离） |
-| Terraform 引导 | kubeadm/Makefile 引导 |
+| Terraform 引导 | kubeadm/Makefile 引导集群；**Terraform 引导 Flux**（`terraform/`，官方 bootstrap 模块）|
+| runtime-info / postBuild | 已引入：`flux-runtime-info` + `clusters/<c>/tenants.yaml` 的 `postBuild.substituteFrom`（`${ARTIFACT_TAG}`/`${ENVIRONMENT}`）|
 | 云集群 | KVM drill / 云 prod 同契约 |
 
 ## 六、安全/隔离

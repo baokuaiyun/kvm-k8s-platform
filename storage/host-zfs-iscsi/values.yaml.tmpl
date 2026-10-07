@@ -1,0 +1,63 @@
+# democratic-csi Helm values（宿主 ZFS + iSCSI 云盘模拟）
+# 由 storage/host-zfs-iscsi/deploy-csi.sh 渲染 __占位__ 后 helm install
+# 结构对齐 chart democratic-csi 0.15.x（driver.config 为顶层键）
+# 详见 docs/cloud-disk-data-solution.md
+
+csiDriver:
+  name: host-zfs-iscsi
+  attachRequired: false          # iSCSI 由 node 插件处理挂载
+  fsGroupPolicy: File
+
+driver:
+  config:
+    driver: zfs-generic-iscsi
+    instance_id: __INSTANCE_ID__
+    zfs:
+      datasetParentName: __ZFS_DATASET__
+      detachedSnapshotsDatasetParentName: __ZFS_SNAPSHOT_DATASET__
+      zvolCompression: __ZFS_COMPRESSION__
+      zvolEnableReservation: false
+      zvolBlockSize: 16K
+      datasetEnableQuotas: true
+    iscsi:
+      targetPortal: __TARGET_PORTAL__
+      targetPortals: []
+      targetIQN: __TARGET_IQN__
+      namePrefix: csi-
+      nameSuffix: ""
+      # zfs-generic-iscsi 必需：targetCli 策略 + IQN 基名（targetcli 二进制由驱动固定调用）
+      shareStrategy: targetCli
+      shareStrategyTargetCli:
+        basename: __ISCSI_IQN_PREFIX__
+        sudoEnabled: false
+        # 允许任意 initiator 登录（无 CHAP）；生产可开 CHAP/ACL
+        tpg:
+          attributes:
+            authentication: 0
+            generate_node_acls: 1
+            demo_mode_write_protect: 0
+      chap:
+        enabled: false
+    sshConnection:
+      host: __SSH_HOST__
+      port: 22
+      username: __SSH_USER__
+      privateKey: |-
+__SSH_PRIVATE_KEY__
+
+# 主镜像改指向本域 Harbor（scheme C 短名）
+controller:
+  driver:
+    image:
+      registry: __HARBOR_HOST__/__HARBOR_PROJECT__/democratic-csi
+      tag: __CSI_TAG__
+
+node:
+  driver:
+    image:
+      registry: __HARBOR_HOST__/__HARBOR_PROJECT__/democratic-csi
+      tag: __CSI_TAG__
+
+# StorageClass/VolumeSnapshotClass 由 storage/apply.sh 统一管理
+storageClasses: []
+volumeSnapshotClasses: []

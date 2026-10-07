@@ -42,6 +42,11 @@ prometheusOperator:
 alertmanager:
   enabled: true
   alertmanagerSpec:
+    # 让 AlertmanagerConfig（platform-alerting）对所有命名空间的告警生效
+    alertmanagerConfigSelector: {}
+    alertmanagerConfigNamespaceSelector: {}
+    alertmanagerConfigMatcherStrategy:
+      type: None
     image:
       registry: harbor.test.baokuaiyun.com/baokuaiyun
       repository: prometheus-alertmanager

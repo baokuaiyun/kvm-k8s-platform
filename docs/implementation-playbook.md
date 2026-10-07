@@ -210,15 +210,14 @@ virt-install \
 SCRIPT
 chmod +x /data/kvm/create-vm.sh
 
-# 起步仅创建 1CP(k8s-cp-1) + 1W(k8s-worker-1)
-/data/kvm/create-vm.sh k8s-cp-1     192.168.124.10 52:54:00:01:01:01 2 4096 30G
-/data/kvm/create-vm.sh k8s-worker-1 192.168.124.20 52:54:00:01:02:01 4 4096 50G
+# 起步仅创建单节点 k8s-cp-1（NODE_* 规格 8C/16G/120G），后续 make scale-out 扩 worker
+/data/kvm/create-vm.sh k8s-cp-1     192.168.124.10 52:54:00:01:01:01 8 16384 120G
 
 virsh list --all
 ```
 
-> 仓库脚本版：`make vm-create`（按 `variables.mk` 的 `CP_INIT_COUNT/WK_INIT_COUNT` 建起步节点）；
-> 扩容用 `make vm-add-cp IDX=2` / `make vm-add-worker IDX=2`。
+> 仓库脚本版：`make vm-create`（单节点起步，`WK_INIT_COUNT=0`；规格取 `NODE_*`）；
+> 扩容用 `make scale-out`（补齐 cp-2/cp-3 + worker-1/worker-2）。
 > cloud-init 会按节点名注入**唯一 hostname**（`kvm/cloud-init/*-user-data` 的 `__HOSTNAME__`），避免多节点同名。
 >
 > **必须 `--boot uefi`（OVMF）**：Debian 13 云镜像用传统 BIOS 会 GRUB 反复重启（无内核日志）；
@@ -287,12 +286,15 @@ make k8s-init
 > ```
 > 关键：`kubectl config view` 必须带 **`--raw`**，否则会脱敏丢证书。
 
-### 1.4.3 加入起步 Worker（worker-1）
+### 1.4.3 加入起步 Worker（单节点起步时跳过）
 
 ```bash
-make k8s-join
-kubectl get nodes            # cp-1 + worker-1（此时 NotReady，装 CNI 后 Ready）
+make k8s-join                # 单节点起步 WK_INIT_COUNT=0，脚本提示“无起步 Worker，跳过”
+kubectl get nodes            # cp-1（单节点，init 已自动去污点，装 CNI 后 Ready）
 ```
+
+> 单节点起步时 `init-control-plane.sh` 会自动移除 cp-1 的 `control-plane` 污点，
+> 让业务 Pod 可调度到唯一节点。启用 worker（`WK_INIT_COUNT>=1`）时则保留污点。
 
 ### 1.4.4 部署 kube-vip（init 之后，接管 VIP）
 
@@ -312,9 +314,9 @@ make kube-vip
 
 ```bash
 make scale-out
-# = vm-add-cp IDX=2/3 + vm-add-worker IDX=2
+# = vm-add-cp IDX=2/3 + vm-add-worker IDX=1/2（单节点起步时 worker 从 1 补齐）
 #   + join-control-plane cp-2/cp-3（每次现取 certificate-key，规避 2h 过期）
-#   + join-worker worker-2
+#   + join-worker worker-1/worker-2
 kubectl get nodes           # 5 节点，control-plane 3 台
 ```
 
@@ -354,15 +356,18 @@ make cni
 kubectl wait -n kube-system --for=condition=Ready pod -l k8s-app=cilium --timeout=300s
 ```
 
-## 1.6 安装 Longhorn 存储
+## 1.6 安装存储（云盘模拟：宿主 ZFS + iSCSI）
 
-> 前置：节点需 **open-iscsi**（`make k8s-common` 已装并启用 `iscsid`），否则 longhorn-manager 会因 `iscsiadm` 缺失崩溃。
-> 用 `make storage`（本地 chart + 本域镜像 values，副本数取 `LONGHORN_REPLICAS`）。
+> drill 默认 `STORAGE_BACKEND=host-zfs-iscsi`：宿主提供 ZFS 块设备，经 iSCSI 给集群，
+> 与计算分离（详见 [`cloud-disk-data-solution.md`](cloud-disk-data-solution.md)）。
+> 若选 Longhorn：`make storage STORAGE_BACKEND=longhorn`（需节点 open-iscsi，`k8s-common` 已装）。
 
 ```bash
-make storage
-kubectl -n longhorn-system get pods
-kubectl get sc   # 期望 longhorn (default)
+make host-storage        # 宿主：ZFS 池 + iSCSI target + MinIO（幂等）
+make csi-storage         # 集群：democratic-csi
+make storage-class       # app-storage（provisioner=host-zfs-iscsi）+ VolumeSnapshotClass
+kubectl get sc           # 期望 app-storage (default)
+kubectl -n democratic-csi get pods
 ```
 
 ## 1.7 安装 cert-manager + Let's Encrypt
@@ -414,11 +419,40 @@ kubectl get certificate -n cert-manager -w   # 等待 Ready=True
 ## 阶段 1 验收
 
 ```bash
-kubectl get nodes                          # 起步 2 节点 Ready（扩容后 5）
+kubectl get nodes                          # 起步 1 节点 Ready（扩容后 5）
+kubectl describe node k8s-cp-1 | grep Taints   # 单节点起步应为空（已去污点）
 kubectl get pods -A                        # 全 Running
-kubectl get sc                             # longhorn
+kubectl get sc                             # app-storage (provisioner=host-zfs-iscsi)
 kubectl get certificate -n cert-manager    # Ready=True
 ```
+
+---
+
+# 集群重建（删除 → 重建）
+
+> 用于"删掉现有 VM 重新拉起"。**默认保留宿主存储**（ZFS 池 / MinIO / 镜像 tar / charts），
+> 因此宿主数据不丢；删除仅针对 VM。
+
+```bash
+make reset-cluster     # 删除全部 VM（保留网络+宿主存储+缓存）
+make rebuild-core      # = reset-cluster + phase1（裸集群 + 云盘存储）
+make rebuild           # = reset-cluster + phase1 + mgmt-bootstrap（平台可用）
+```
+
+单独控制：
+
+```bash
+make clean             # 删 VM（保留网络与宿主存储）
+make clean-all         # 删 VM + 网络
+make purge-host-storage # [危险] 清宿主 ZFS 池+MinIO（数据全丢，需二次确认）
+bash scripts/list-orphan-volumes.sh   # 列出宿主 ZFS 上的 K8s 卷（核对数据仍在）
+```
+
+要点：
+- `vm-create` 幂等：VM/磁盘已存在则跳过；重复 `make rebuild` 安全。
+- **数据恢复**：删集群不会删宿主 zvol，但 k8s PV/PVC 随集群消失；实际复原走备份
+  （CNPG barman / Velero / GitLab backup-utility），见 `docs/cloud-disk-data-solution.md` §8。
+- 不想动宿主存储时，切勿用 `make purge-host-storage`。
 
 ---
 

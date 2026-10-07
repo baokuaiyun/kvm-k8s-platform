@@ -1,53 +1,70 @@
-# 分仓骨架（机器可读）：当前整合，生产时据此拆分
+# 分仓骨架（机器可读）：对齐 D2 三仓 fleet / infra / apps
+# drill 与 prod 同拓扑，仅 env/config 差异；分仓是"物理"复制，结构一致。
 # glob -> 目标仓 -> owner -> 制品约定
-version: 1
-current: mono            # 当前：整合单仓
-trigger: "持续开发启动 / 多团队 / 权限隔离 / 发布节奏分化"
+version: 2
+current: mono            # 当前整合；生产可据此真拆（同一结构）
+topology: fleet/infra/apps
 
 repos:
-  platform:
-    description: 平台仓（本仓）：引导、fleet、layer、平台组件与平台应用、租户基线、金标模板
+  fleet:
+    description: fleet 仓：集群/fleet 期望态 + 引导（kubeadm/kvm/storage 引导 + Terraform）+ runtime-info + tenants(ResourceSet) + 文档/Makefile
     owner: platform-team
+    cluster_admin: true
     paths:
       - bootstrap/**
-      - docs/**
-      - registry/**
-      - scripts/**
-      - storage/**
+      - gitops/fleet/**
+      - gitops/clusters/**
+      - gitops/tenants/**
+      - gitops/roles/**
+      - gitops/planes/**
+      - gitops/profiles/**
+      - gitops/runtime-info.yaml
+      - gitops/repo-split.yaml
+      - gitops/settings.md
       - kvm/**
       - kubernetes/**
+      - storage/**
+      - registry/**
+      - scripts/**
+      - terraform/**
+      - Makefile
+      - variables.mk
+      - mkdocs.yml
+      - docs/**
+    artifacts:
+      naming: "oci://harbor/baokuaiyun/fleet:<tag>"     # 期望态制品（FluxInstance.sync）
+      cosign: "platform-team-fleet"
+
+  infra:
+    description: infra 仓：平台组件（CRD/控制器/平台服务）→ OCI 制品，Flux 消费
+    owner: platform-team
+    paths:
+      - gitops/components/infra/**
+      - gitops/components/platform/**
+      - gitops/components/data/**
       - platform/**
-      # GitOps 期望态（未来可拆为独立 gitops 库）
-      - gitops/**
+      - infrastructure/**
+      - observability/**
     artifacts:
       naming: "oci://harbor/baokuaiyun/<component>:<tag>"   # scheme C
-      cosign: "platform-team"                               # 独立签名主体
-    fleet: true            # fleet/clusters 留在平台仓
+      cosign: "platform-team-infra"
 
   apps:
-    description: 开发仓：应用清单/Helm/overlays、应用侧 CI 定义（持续开发）
+    description: apps 仓：业务应用 → OCI 制品，Flux 消费
     owner: app-teams
     paths:
       - apps/**
+      - gitops/components/apps/**
     artifacts:
       naming: "oci://harbor/baokuaiyun/<app>:<tag>"
       cosign: "app-teams"
-    fleet: false
-
-  tenant:                  # 可选
-    description: 租户仓：强隔离客户专属配置
-    owner: delivery
-    paths:
-      - gitops/tenants/private/**
-    artifacts:
-      naming: "oci://harbor/baokuaiyun/<tenant>-<app>:<tag>"
-      cosign: "delivery"
-    fleet: false
 
 # 跨仓契约（详见 docs/repo-topology.md）
 contract:
   resource_set_inputs: [tenant, tag, environment, layer]
+  runtime_info: "flux-runtime-info（postBuild.substituteFrom）"
   tenant_baseline: "平台提供 namespace/quota/RBAC/NetworkPolicy；开发仓引用参数"
   env_overlays: [drill, prod, enterprise]
   tags: { drill: latest, prod: latest-stable, pinned: "vX.Y.Z" }
   component_type: [A, B]   # 渲染按集群类型过滤
+  signature: "key-based cosign(drill) / OIDC(prod)，机制相同仅配置不同"

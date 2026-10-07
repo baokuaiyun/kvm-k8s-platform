@@ -1,4 +1,4 @@
-name: longhorn
+name: storage-longhorn
 plane: infra
 fleet: [all-in-one, mgmt, biz, data]
 env: [drill, prod, enterprise]

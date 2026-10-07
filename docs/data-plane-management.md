@@ -18,6 +18,10 @@
 
 **B 的价值**：数据"宠物"与计算"牲畜"生命周期隔离；一处治理、多集群消费；云无关、可迁移。
 
+> drill 现状（形态 D）已把**块存储外置到宿主**（ZFS+iSCSI+democratic-csi，见
+> [`cloud-disk-data-solution.md`](cloud-disk-data-solution.md)）：数据落宿主、删集群可重挂，
+> 是迈向 B 的过渡形态——但同一台宿主内仍无真正故障域隔离。
+
 ## 二、管理总览（谁管什么）
 
 | 维度 | 平台（数据面 owner） | 租户/应用 |

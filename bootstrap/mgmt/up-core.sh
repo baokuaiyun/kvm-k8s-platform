@@ -5,7 +5,7 @@ source "$(dirname "$0")/../lib.sh"
 
 log "Cilium CNI"
 m cni
-log "Longhorn 存储"
+log "存储后端（按 STORAGE_BACKEND，默认 host-zfs-iscsi 云盘模拟）"
 m storage
 log "规范 StorageClass (app-storage)"
 m storage-class

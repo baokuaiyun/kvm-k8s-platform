@@ -11,15 +11,17 @@
 - **发布时间分化**：平台版本与应用版本解耦。
 > 单一太大后，"持续开发"天然要在**独立 Git**里进行。
 
-## 二、目标拓扑（生产时）
+## 二、目标拓扑（对齐 D2：fleet / infra / apps）
+
 | 仓 | 内容 | 归属 | 节奏 |
 |---|---|---|---|
-| **平台仓**（本仓） | `bootstrap/ fleet/ layers/ components/{infra,platform}`、平台应用、租户基线、金标模板 | 平台团队 | 低频受控 |
-| **开发仓** | `apps/*`（应用清单/Helm/overlays、应用侧 CI 定义） | 应用团队 | 高频持续 |
-| **租户仓**（可选） | 强隔离客户专属配置 | 交付/租户 | 按客户 |
+| **fleet** | 集群/fleet 期望态（`clusters/<c>`、`tenants/*` ResourceSet、runtime-info）+ 引导（kubeadm/kvm/storage + `terraform/`）+ Makefile/文档 | 平台团队 | 低频受控 |
+| **infra** | 平台组件（CRD/控制器/平台服务：cilium/storage/cert-manager/harbor/gitlab/可观测…）| 平台团队 | 中频 |
+| **apps** | 业务应用清单/Helm/overlays、应用侧 CI | 应用团队 | 高频持续 |
 
-- `fleet/clusters/<cluster>`（集群叠加栈）留在**平台仓**。
-- 各仓独立 CI → **OCI 制品** → Flux 统一消费。
+- drill 与 prod **同拓扑**，仅 env/config 差异；分仓为物理复制（结构一致）。
+- 机器可读映射见 [`../gitops/repo-split.yaml`](../gitops/repo-split.yaml)；拆分工具 `scripts/repo-split.sh`（`make repo-split`）。
+- 各仓独立 CI → **OCI 制品** → Flux 统一消费（Harbor+key-based cosign drill / OIDC prod）。
 
 ## 三、跨仓契约（必须固定）
 | 契约 | 约定 |

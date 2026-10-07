@@ -30,6 +30,11 @@ else
   targets=("$@")
 fi
 
+if [ "${#targets[@]}" -eq 0 ]; then
+  echo "[=] 无起步 Worker（WK_INIT_COUNT=${WK_INIT_COUNT:-0}），跳过 join-worker"
+  exit 0
+fi
+
 join_one() {
   local name="$1" ip
   ip=$(resolve_ip "$name") || { echo "[!] 未知 worker: $name"; return 1; }

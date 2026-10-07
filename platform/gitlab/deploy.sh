@@ -22,12 +22,20 @@ kubectl -n "$NS" create secret generic gitlab-redis-cred \
   --from-literal=password="$RPW" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 
 : "${MINIO_ROOT_USER:?MINIO_ROOT_USER 未设置}"; : "${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD 未设置}"
+OBJECT_STORE="${GITLAB_OBJECT_STORE:-minio}"
+case "$OBJECT_STORE" in
+  host-minio|minio-host)
+    MINIO_ENDPOINT="${HOST_MINIO_ENDPOINT:-http://192.168.124.1:9000}";;
+  minio|*)
+    MINIO_ENDPOINT="http://minio.minio.svc.cluster.local:9000";;
+esac
+echo "[+] GitLab 对象存储: ${OBJECT_STORE} -> ${MINIO_ENDPOINT}"
 CONN="$(cat <<EOF
 provider: AWS
 region: us-east-1
 aws_access_key_id: ${MINIO_ROOT_USER}
 aws_secret_access_key: ${MINIO_ROOT_PASSWORD}
-endpoint: http://minio.minio.svc.cluster.local:9000
+endpoint: ${MINIO_ENDPOINT}
 path_style: true
 EOF
 )"

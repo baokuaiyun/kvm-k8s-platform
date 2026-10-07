@@ -2,6 +2,17 @@
 SHELL := /bin/bash
 include ../variables.mk
 
+# 单节点起步：cp-1 使用放大的 NODE_* 规格
+ifeq ($(SINGLE_NODE_SPEC),1)
+CP1_VCPU := $(NODE_VCPU)
+CP1_RAM  := $(NODE_RAM)
+CP1_DISK := $(NODE_DISK)
+else
+CP1_VCPU := $(CP_VCPU)
+CP1_RAM  := $(CP_RAM)
+CP1_DISK := $(CP_DISK)
+endif
+
 .PHONY: init network network-refresh dns-check dirs image vm-create vm-add-cp vm-add-worker destroy list
 
 init: ## 安装 KVM 工具链
@@ -36,21 +47,25 @@ image: ## 下载 Debian 13 镜像
 	[ -f "$(IMAGE_DIR)/$(BASE_IMAGE)" ] || \
 		wget -q "$(BASE_IMAGE_URL)" -O "$(IMAGE_DIR)/$(BASE_IMAGE)"
 
-vm-create: ## 创建起步节点 (CP_INIT_COUNT=1 + WK_INIT_COUNT=1)
-	@echo "[+] 创建起步控制面 (前 $(CP_INIT_COUNT) 台)..."
+vm-create: ## 创建起步节点（单节点 1CP，NODE_* 规格）
+	@echo "[+] 创建起步控制面 (前 $(CP_INIT_COUNT) 台；single_node_spec=$(SINGLE_NODE_SPEC))..."
 	@i=1; for ip in $(wordlist 1,$(CP_INIT_COUNT),$(CP_IPS)); do \
 		name=$$(echo $(CP_NAMES) | cut -d' ' -f$$i); \
 		mac=$$(echo $(CP_MACS) | cut -d' ' -f$$i); \
-		bash scripts/create-vm.sh $$name $$ip $$mac $(CP_VCPU) $(CP_RAM) $(CP_DISK); \
+		bash scripts/create-vm.sh $$name $$ip $$mac $(CP1_VCPU) $(CP1_RAM) $(CP1_DISK); \
 		i=$$((i+1)); \
 	done
-	@echo "[+] 创建起步 Worker (前 $(WK_INIT_COUNT) 台)..."
-	@i=1; for ip in $(wordlist 1,$(WK_INIT_COUNT),$(WK_IPS)); do \
-		name=$$(echo $(WK_NAMES) | cut -d' ' -f$$i); \
-		mac=$$(echo $(WK_MACS) | cut -d' ' -f$$i); \
-		bash scripts/create-vm.sh $$name $$ip $$mac $(WK_VCPU) $(WK_RAM) $(WK_DISK); \
-		i=$$((i+1)); \
-	done
+	@if [ "$(WK_INIT_COUNT)" -gt 0 ]; then \
+		echo "[+] 创建起步 Worker (前 $(WK_INIT_COUNT) 台)..."; \
+		i=1; for ip in $(wordlist 1,$(WK_INIT_COUNT),$(WK_IPS)); do \
+			name=$$(echo $(WK_NAMES) | cut -d' ' -f$$i); \
+			mac=$$(echo $(WK_MACS) | cut -d' ' -f$$i); \
+			bash scripts/create-vm.sh $$name $$ip $$mac $(WK_VCPU) $(WK_RAM) $(WK_DISK); \
+			i=$$((i+1)); \
+		done; \
+	else \
+		echo "[=] WK_INIT_COUNT=0：单节点起步，不创建 worker"; \
+	fi
 
 vm-add-cp: ## 新增控制面节点: make vm-add-cp IDX=2
 	@[ -n "$(IDX)" ] || { echo "用法: make vm-add-cp IDX=<序号 2..3>"; exit 1; }

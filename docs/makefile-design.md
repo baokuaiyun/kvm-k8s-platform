@@ -63,11 +63,11 @@ network-create:  ## 创建 NAT 网络
 image-download:  ## 下载 Debian 13 镜像
 	wget -O /data/kvm/images/debian-13.qcow2 $(BASE_IMAGE_URL)
 
-vm-create:  ## 创建起步节点 (1CP+1W)
-	# 按 CP_INIT_COUNT/WK_INIT_COUNT 创建
-	# 扩容: make vm-add-cp IDX=2 / make vm-add-worker IDX=2
+vm-create:  ## 创建起步节点（单节点 1CP，NODE_* 规格）
+	# 单节点：WK_INIT_COUNT=0，cp-1 用 NODE_VCPU/RAM/DISK
+	# 扩容: make scale-out（补齐 cp-2/3 + worker-1/2）
 
-k8s-install:  ## kubeadm 安装集群 (1CP+1W, endpoint=VIP)
+k8s-install:  ## kubeadm 安装集群 (单节点起步, endpoint=VIP)
 	bash kubernetes/scripts/install-common.sh   # kubelet/kubeadm/containerd
 	bash kubernetes/scripts/setup-kube-vip.sh   # VIP 静态 Pod（init 前）
 	bash kubernetes/scripts/init-control-plane.sh  # endpoint=k8s-api.test.baokuaiyun.com:6443
@@ -132,9 +132,21 @@ backup:  ## etcd + Velero 备份
 upgrade:  ## 集群升级（按 SOP）
 	bash kubernetes/scripts/upgrade.sh $(K8S_NEW_VERSION)
 
-## ========== 清理 ==========
-clean:  ## 销毁全部 VM 和资源
-	bash kvm/scripts/destroy-all.sh
+## ========== 删除 / 重建 ==========
+reset-cluster:  ## 删除全部 VM（保留网络+宿主存储+缓存）
+	KEEP_NETWORK=1 PURGE_HOST_STORAGE=0 FORCE=1 bash kvm/scripts/destroy-all.sh
+
+clean:          ## 删除全部 VM（保留网络与宿主存储）
+	KEEP_NETWORK=1 PURGE_HOST_STORAGE=0 bash kvm/scripts/destroy-all.sh
+
+clean-all:      ## 删除全部 VM + 网络（保留宿主存储）
+	KEEP_NETWORK=0 PURGE_HOST_STORAGE=0 bash kvm/scripts/destroy-all.sh
+
+purge-host-storage:  ## [危险] 清除宿主 ZFS 池与 MinIO
+	bash kvm/scripts/purge-host-storage.sh
+
+rebuild: reset-cluster phase1 mgmt-bootstrap   ## 删除→重建→平台可用
+rebuild-core: reset-cluster phase1             ## 删除→重建（裸集群+存储）
 ```
 
 ## 三、variables.mk（环境差异集中管理）
@@ -199,12 +211,16 @@ make phase1 DOMAIN=baokuaiyun.com STORAGE_CLASS=alicloud-disk
 
 ```bash
 make help                  # 查看所有目标
-make init                  # 初始化 KVM
-make phase1                # 一键跑完阶段 1
-make vm-create             # 只建 VM
+make init                  # 初始化 KVM（含 host-storage 云盘层）
+make phase1                # 一键跑完阶段 1（单节点起步）
+make vm-create             # 只建 VM（幂等）
 make k8s-install           # 只装集群
 make verify                # 全量验收
-make clean                 # 全部销毁重建
+make reset-cluster         # 删除 VM（保留宿主数据），用于重建
+make rebuild               # 删除→重建→平台可用
+make rebuild-core          # 删除→重建（裸集群）
+make clean-all             # 删除 VM + 网络
+make purge-host-storage    # [危险] 清除宿主 ZFS/MinIO
 ```
 
 ## 六、设计原则
@@ -215,4 +231,4 @@ make clean                 # 全部销毁重建
 | **变量集中** | IP/域名/版本全在 variables.mk，改一处生效 |
 | **环境隔离** | 域名/存储差异通过变量或 Kustomize overlay 切换 |
 | **阶段编排** | phase1-4 顶层目标，内部组合子目标 |
-| **可重建** | `make clean && make phase1` 可从头重建 |
+| **可重建** | `make rebuild`（= reset-cluster + phase1 + mgmt-bootstrap）可从头重建；宿主存储与缓存默认保留 |

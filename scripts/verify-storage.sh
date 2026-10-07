@@ -4,8 +4,9 @@
 set -uo pipefail
 
 SC="${STORAGE_CLASS:-app-storage}"
-SNAPSHOT_CLASS="${SNAPSHOT_CLASS:-longhorn}"
-BACKEND="${STORAGE_BACKEND:-longhorn}"
+SNAPSHOT_CLASS="${SNAPSHOT_CLASS:-host-zfs-iscsi}"
+BACKEND="${STORAGE_BACKEND:-host-zfs-iscsi}"
+CSI_NS="${CSI_NAMESPACE:-democratic-csi}"
 FAIL=0
 ok()   { echo "  [OK]   $*"; }
 warn() { echo "  [WARN] $*"; }
@@ -35,7 +36,7 @@ else
   warn "VolumeSnapshotClass $SNAPSHOT_CLASS 不存在（CNPG volumeSnapshot 备份不可用）"
 fi
 
-echo "=== 3. Longhorn ==="
+echo "=== 3. 存储后端 ($BACKEND) ==="
 if [ "$BACKEND" = "longhorn" ]; then
   if kubectl -n longhorn-system get ds longhorn-manager >/dev/null 2>&1; then
     ok "longhorn-manager DaemonSet 存在"
@@ -47,10 +48,28 @@ if [ "$BACKEND" = "longhorn" ]; then
     rc=$(kubectl -n longhorn-system get setting default-replica-count -o jsonpath='{.value}' 2>/dev/null || true)
     echo "       default-replica-count=${rc:-<未设置>}"
   else
-    bad "Longhorn 未安装（make storage）"
+    bad "Longhorn 未安装（make storage-longhorn）"
   fi
+elif [ "$BACKEND" = "host-zfs-iscsi" ]; then
+  if kubectl get csidriver host-zfs-iscsi >/dev/null 2>&1; then
+    ok "CSIDriver host-zfs-iscsi 存在"
+  else
+    bad "CSIDriver host-zfs-iscsi 不存在（make csi-storage）"
+  fi
+  if kubectl -n "$CSI_NS" get pods >/dev/null 2>&1; then
+    dr=$(kubectl -n "$CSI_NS" get pods -l app.kubernetes.io/name=democratic-csi --no-headers 2>/dev/null | grep -c Running || true)
+    tot=$(kubectl -n "$CSI_NS" get pods -l app.kubernetes.io/name=democratic-csi --no-headers 2>/dev/null | wc -l || echo 0)
+    [ "${dr:-0}" -gt 0 ] && ok "democratic-csi Pod Running ${dr}/${tot}" || warn "democratic-csi 无 Running Pod"
+  else
+    warn "命名空间 $CSI_NS 不存在"
+  fi
+  kubectl -n "$CSI_NS" get secret democratic-csi-driver-config >/dev/null 2>&1 \
+    && ok "driver 配置 Secret democratic-csi-driver-config 存在" \
+    || warn "driver 配置 Secret democratic-csi-driver-config 缺失"
+  # 宿主 ZFS/portal 只能在宿主上核对，这里给提示
+  echo "       [提示] 宿主核对: zpool status、targetcli /iscsi ls、MinIO 容器"
 else
-  echo "  [=] backend=$BACKEND，跳过 Longhorn 检查"
+  echo "  [=] backend=$BACKEND，跳过后端细节检查"
 fi
 
 echo "=== 4. PVC 状态 ==="
@@ -59,7 +78,7 @@ if [ -z "$pvc_out" ]; then
   warn "集群内暂无 PVC"
 else
   total=$(printf '%s\n' "$pvc_out" | wc -l)
-  unbound=$(printf '%s\n' "$pvc_out" | awk '$3!="Bound"{c++} END{print c+0}')
+  unbound=$(printf '%s\n' "$pvc_out" | awk '$3!="Bound" && $3!="Terminating"{c++} END{print c+0}')
   echo "$pvc_out" | awk '{printf "  %-18s %-28s %-8s %s\n",$1,$2,$3,$4}'
   [ "$unbound" -eq 0 ] && ok "$total 个 PVC 均为 Bound" || bad "$unbound/$total 个 PVC 非 Bound"
 fi
