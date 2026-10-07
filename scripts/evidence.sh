@@ -29,6 +29,7 @@ CHECKS_DEF=(
   "csi|CSI 控制器/节点|kubectl -n democratic-csi get pods -o wide"
   "snapshot_class|快照类|kubectl get volumesnapshotclass"
   "storage_verify|存储验收|make -C $ROOT verify-storage"
+  "network_verify|网络平面验收|make -C $ROOT verify-network"
   "helm|Helm 发布|helm list -A"
 )
 

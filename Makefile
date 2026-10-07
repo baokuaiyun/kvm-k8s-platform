@@ -29,7 +29,7 @@ endif
 	cni storage storage-longhorn csi-storage csi-preload storage-class cert security monitoring agents alerts alerts-print alert-adapter platform harbor gitlab platform-data gitops flux-operator tenants operators images \
 	resolve-artifacts sync-artifacts publish-artifacts verify-bootstrap mgmt-bootstrap member-bootstrap \
 	build-component render-stack drill-expand-pvc auto-expand auto-expand-once \
-	backup-upgrade velero verify-cluster verify-monitoring verify-apps verify-storage evidence app-backup app-restore tf-init tf-plan tf-apply tf-fmt tf-validate repo-split \
+	backup-upgrade velero verify-cluster verify-monitoring verify-apps verify-storage verify-network evidence app-backup app-restore tf-init tf-plan tf-apply tf-fmt tf-validate repo-split \
 	verify-data verify-tenant
 
 DOCS_PORT ?= 8000
@@ -46,7 +46,7 @@ phase1: init host-storage vm-create acr-prepare charts-pull k8s-common image-loa
 phase2: security idp monitoring agents alerts auto-expand ## 阶段2: 安全/身份及运营监控 + 告警/自动扩容
 phase3: operators platform-data platform gitops tenants images ## 阶段3: Operator→共享数据→应用+GitOps
 phase4: backup-upgrade                          ## 阶段4: 持续升级维护
-verify: verify-cluster verify-monitoring verify-apps verify-storage verify-data verify-tenant ## 全量验收
+verify: verify-cluster verify-network verify-monitoring verify-apps verify-storage verify-data verify-tenant ## 全量验收
 
 ## ============ 阶段 1: 基础集群 ============
 kvm-init: ## 安装 KVM 工具链
@@ -515,6 +515,10 @@ verify-data: ## 验证数据平面（CNPG/Redis/备份/端点）
 verify-tenant: ## 验证租户平面（Mode A：配额/PSA/NetPol/RBAC/隔离）
 	@echo "[+] 租户平面验收..."
 	bash scripts/verify-tenant.sh
+
+verify-network: ## 验证网络平面（宿主内网/DNS/CP VIP/Pod/Service/LB/外网）: make verify-network [TARGET=all|host|dns|vip|pod|svc|lb|egress]
+	@echo "[+] 网络平面验收（ENV=$(or $(ENV),$(FLEET_ENV)), target=$(or $(TARGET),all)）..."
+	ENV='$(or $(ENV),$(FLEET_ENV))' bash scripts/verify-network.sh $(or $(TARGET),all)
 
 drill-expand-pvc: ## 云盘在线扩容演练（建 PVC→写数→扩容量→校验无损）
 	@echo "[+] 在线扩容演练（backend=$(STORAGE_BACKEND)）..."

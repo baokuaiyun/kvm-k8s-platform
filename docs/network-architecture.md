@@ -3,6 +3,7 @@
 > 本文是**网络相关内容的单一入口**：网络平面归属、宿主机内网、容器网络（Pod/Service 分开讲）、外网、控制面浮动 IP（kube-vip）、服务 LB、三环境实现对比、网络参数设置与要求、双网段规划与 FAQ。
 > 关联 [`parameters.md`](parameters.md)、[`access-gateway.md`](access-gateway.md)、[`environment-differences.md`](environment-differences.md)、
 > [`alicloud-deployment.md`](alicloud-deployment.md)、[`implementation-playbook.md`](implementation-playbook.md)。
+> **验证**：网络正确性核对见 [`network-verification.md`](network-verification.md)（`make verify-network`）。
 >
 > 参数单一真源：[`variables.mk`](../variables.mk)（G 默认）<- [`gitops/profiles/<env>.env`](../gitops/profiles)（P 覆盖，`make ... ENV=<env>`）<- `acr.env`（S 密钥）。
 
