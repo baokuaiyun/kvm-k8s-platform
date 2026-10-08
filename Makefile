@@ -21,16 +21,16 @@ CP1_DISK := $(CP_DISK)
 endif
 
 .PHONY: help init phase1 phase2 phase3 phase4 verify clean docs docs-build docs-down \
-	network-refresh dns-check biz-bridge vm-create vm-add-cp vm-add-worker \
+	network-refresh ingress-dns dns-check biz-bridge vm-create vm-add-cp vm-add-worker \
 	k8s-common kube-vip k8s-init k8s-join k8s-install join-cp join-worker scale-out kubeconfig \
 	acr-prepare image-load image-preflight helm-images charts-pull charts-push-yunxiao charts-push-git yunxiao-repos idp \
 	kvm-init dirs network-create image-download host-storage post-reboot-install \
 	reset-cluster clean-all rebuild rebuild-core purge-host-storage \
-	cni storage storage-longhorn csi-storage csi-preload storage-class cert gateway security monitoring agents alerts alerts-print alert-adapter platform harbor harbor-admin-info harbor-rotate-admin gitlab platform-data gitops flux-operator tenants operators images \
+	cni storage storage-longhorn csi-storage csi-preload storage-class cert gateway security monitoring agents observability alerts alerts-print alert-adapter platform harbor harbor-admin-info harbor-rotate-admin gitlab platform-data gitops flux-operator tenants operators images \
 	resolve-artifacts sync-artifacts publish-artifacts verify-bootstrap mgmt-bootstrap member-bootstrap \
 	build-component render-stack drill-expand-pvc auto-expand auto-expand-once \
 	backup-upgrade velero verify-cluster verify-monitoring verify-apps verify-storage verify-network evidence app-backup app-restore tf-init tf-plan tf-apply tf-fmt tf-validate repo-split \
-	verify-data verify-tenant
+	verify-data verify-tenant verify-compute compute-drill compute-node-pools metrics-server
 
 DOCS_PORT ?= 8000
 DOCS_IMAGE ?= squidfunk/mkdocs-material:latest
@@ -43,10 +43,10 @@ help: ## 显示所有可用目标
 ## ============ 阶段编排 ============
 init: kvm-init network-create dirs image-download ## 初始化 KVM 环境
 phase1: init host-storage vm-create acr-prepare charts-pull k8s-common image-load image-preflight k8s-init k8s-join kube-vip cni storage storage-class cert ## 阶段1: 基础集群创建（单节点起步；镜像/chart/存储先就绪）
-phase2: security idp monitoring agents alerts auto-expand ## 阶段2: 安全/身份及运营监控 + 告警/自动扩容
+phase2: security idp observability metrics-server auto-expand ## 阶段2: 安全/身份及可观测（GitOps）+ metrics-server + 自动扩容
 phase3: operators platform-data platform gitops tenants images ## 阶段3: Operator→共享数据→应用+GitOps
 phase4: backup-upgrade                          ## 阶段4: 持续升级维护
-verify: verify-cluster verify-network verify-monitoring verify-apps verify-storage verify-data verify-tenant ## 全量验收
+verify: verify-cluster verify-network verify-monitoring verify-apps verify-storage verify-data verify-tenant verify-compute ## 全量验收
 
 ## ============ 阶段 1: 基础集群 ============
 kvm-init: ## 安装 KVM 工具链
@@ -69,6 +69,7 @@ network-create: ## 创建 libvirt NAT 网络（含内网 DNS，幂等）
 	fi
 	@virsh net-info $(NET_NAME) 2>/dev/null | grep -q 'Active:.*yes' || virsh net-start $(NET_NAME)
 	virsh net-autostart $(NET_NAME)
+	@$(MAKE) --no-print-directory ingress-dns
 
 network-refresh: ## 应用网络 XML 变更（含内网 DNS，短暂断网）
 	@echo "[+] 刷新网络 $(NET_NAME)..."
@@ -77,6 +78,14 @@ network-refresh: ## 应用网络 XML 变更（含内网 DNS，短暂断网）
 	virsh net-define kvm/br-prod.xml
 	virsh net-start $(NET_NAME)
 	virsh net-autostart $(NET_NAME)
+	@$(MAKE) --no-print-directory ingress-dns
+
+ingress-dns: ## 渲染并应用平台入口域名的内网 DNS（单一来源，幂等）
+	@echo "[+] 渲染入口 DNS（VIP=$(EFF_GATEWAY_VIP) services='$(INGRESS_SERVICES)'）..."
+	DOMAIN=$(DOMAIN) EFF_GATEWAY_VIP=$(EFF_GATEWAY_VIP) GATEWAY_VIP=$(GATEWAY_VIP) \
+	INGRESS_SERVICES='$(INGRESS_SERVICES)' NET_NAME=$(NET_NAME) NET_GATEWAY=$(NET_GATEWAY) \
+	UPDATE_NODE_HOSTS=$(UPDATE_NODE_HOSTS) \
+	bash scripts/render-ingress-dns.sh
 
 dns-check: ## 验证内网 DNS（control-plane-endpoint）
 	@echo "[+] 解析 $(CP_ENDPOINT):"
@@ -302,7 +311,7 @@ security: ## 安全基线（RBAC/NetworkPolicy/Quota）
 	@echo "[+] 应用安全基线..."
 	kubectl apply -k infrastructure/security/ 2>/dev/null || true
 
-monitoring: ## 安装监控栈
+monitoring: ## [legacy] 命令式安装 kube-prometheus-stack（已由 GitOps observability 目标替代）
 	@echo "[+] 安装 kube-prometheus-stack..."
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
 	helm repo update
@@ -312,7 +321,7 @@ monitoring: ## 安装监控栈
 		--set alertmanager.alertmanagerSpec.alertmanagerConfigNamespaceSelector={} \
 		--set alertmanager.alertmanagerSpec.alertmanagerConfigMatcherStrategy.type=None
 
-agents: ## 安装可观测性 agent
+agents: ## [legacy] 命令式安装 OTel / Blackbox / Loki（已由 GitOps observability 目标替代）
 	@echo "[+] 安装 OTel / Blackbox / Loki..."
 	helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts 2>/dev/null || true
 	helm repo update
@@ -321,7 +330,19 @@ agents: ## 安装可观测性 agent
 	helm upgrade --install loki grafana/loki -n monitoring
 	helm upgrade --install promtail grafana/promtail -n monitoring
 
-alerts: ## 应用告警规则 + 渲染 AlertmanagerConfig（系统参数化，见 docs/parameters.md）
+observability: ## 可观测（GitOps 一个阶段）：chart+镜像+组件制品 → Flux 收敛（Prometheus/Grafana/Alertmanager + Loki/Alloy/Blackbox + 告警）
+	@echo "[+] 可观测 GitOps 交付（component=monitoring, layer=observability）..."
+	$(MAKE) --no-print-directory push-charts
+	$(MAKE) --no-print-directory publish-artifacts FLEET_MODES=observability
+	$(MAKE) --no-print-directory build-component C=infra/monitoring TAG=latest SIGN=--sign
+	$(MAKE) --no-print-directory render-stack FLEET_MODES=observability
+	@echo "[+] 等待 Flux 收敛（Kustomization monitoring/component）..."
+	@for i in $$(seq 1 12); do \
+		s=$$(kubectl -n monitoring get kustomization component -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null); \
+		[ "$$s" = "True" ] && { echo "    Ready"; break; }; sleep 20; done
+	@kubectl -n monitoring get helmrelease,pods 2>/dev/null
+
+alerts: ## [legacy] 命令式应用告警规则/路由（已并入 GitOps monitoring 组件）
 	@echo "[+] 应用告警规则与通知路由..."
 	bash observability/apply-alerts.sh
 
@@ -530,7 +551,7 @@ verify-apps: ## 验证应用
 	kubectl get pods -n harbor
 	kubectl get pods -n gitlab
 
-verify-storage: ## 验证存储契约/副本/备份目标/备份时效
+verify-storage: ## 验证存储契约/副本/备份目标/备份时效/云盘用量（命令逐条回显，见 docs/storage-verification.md）
 	@echo "[+] 存储与备份验收..."
 	bash scripts/verify-storage.sh
 
@@ -545,6 +566,24 @@ verify-tenant: ## 验证租户平面（Mode A：配额/PSA/NetPol/RBAC/隔离）
 verify-network: ## 验证网络平面（宿主内网/DNS/CP VIP/Pod/Service/LB/外网）: make verify-network [TARGET=all|host|dns|vip|pod|svc|lb|egress]
 	@echo "[+] 网络平面验收（ENV=$(or $(ENV),$(FLEET_ENV)), target=$(or $(TARGET),all)）..."
 	ENV='$(or $(ENV),$(FLEET_ENV))' bash scripts/verify-network.sh $(or $(TARGET),all)
+
+verify-compute: ## 验证计算图层（规格/超分/调度/配额/弹性/节点池/GPU/告警）: make verify-compute [TARGET=readonly|drill|drill-only]
+	@echo "[+] 计算验收（ENV=$(or $(ENV),$(FLEET_ENV)), target=$(or $(TARGET),readonly)）..."
+	ENV='$(or $(ENV),$(FLEET_ENV))' bash scripts/verify-compute.sh $(or $(TARGET),readonly)
+
+compute-drill: ## 计算完整演练/压测（临时 ns，自清理；见 docs/compute-verification.md）
+	@echo "[+] 计算演练/压测（ENV=$(or $(ENV),$(FLEET_ENV))）..."
+	ENV='$(or $(ENV),$(FLEET_ENV))' bash scripts/verify-compute.sh drill
+
+compute-node-pools: ## 节点池打标（幂等；COMPUTE_NODE_POOLS="node=pool ..." 或参数指定，见 compute-architecture.md）
+	@echo "[+] 节点池打标（label=$(COMPUTE_POOL_LABEL)）..."
+	bash scripts/compute-node-pool.sh $(COMPUTE_NODE_POOLS)
+
+metrics-server: ## 安装 metrics-server（HPA/VPA/kubectl top 前提；本域镜像）
+	@echo "[+] 安装 metrics-server（image=$(METRICS_SERVER_IMAGE)）..."
+	envsubst '$${METRICS_SERVER_IMAGE}' < kubernetes/configs/metrics-server.yaml | kubectl apply -f -
+	@kubectl -n kube-system rollout status deploy/metrics-server --timeout=180s || true
+	@echo "[=] 验证: kubectl top nodes"
 
 drill-expand-pvc: ## 云盘在线扩容演练（建 PVC→写数→扩容量→校验无损）
 	@echo "[+] 在线扩容演练（backend=$(STORAGE_BACKEND)）..."

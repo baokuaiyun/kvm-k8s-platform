@@ -4,6 +4,8 @@ kind: PrometheusRule
 metadata:
   name: cluster-alerts
   namespace: monitoring
+  labels:
+    release: monitoring
 spec:
   groups:
   - name: node

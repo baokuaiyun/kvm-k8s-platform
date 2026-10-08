@@ -42,10 +42,10 @@ metadata:
   namespace: __NAMESPACE__
 spec:
   hard:
-    requests.cpu: "4"
-    requests.memory: "8Gi"
-    limits.cpu: "8"
-    limits.memory: "16Gi"
+    requests.cpu: "__REQ_CPU__"
+    requests.memory: "__REQ_MEM__"
+    limits.cpu: "__LIM_CPU__"
+    limits.memory: "__LIM_MEM__"
     persistentvolumeclaims: "5"
     requests.storage: "50Gi"     # 防止租户无限申请 PV 撑爆存储池
     services.loadbalancers: "1"

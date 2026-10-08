@@ -22,6 +22,10 @@
 | **租户平面** | Mode A/B/C、隔离、配额、RBAC、自助 | 建在集群面之上 | 牲畜 | 租户命名/隔离模型、身份→RBAC 映射 | 租户自助开通 + 隔离验收 |
 
 > 启动顺序：**数据平面 → 工具链平面 → 集群平面 → 租户平面**（工具链自己也要数据；B 形态需先建数据集群）。
+>
+> **计算图层**：计算是**集群平面的横切图层**（不单列第五平面），覆盖宿主 VM → 节点 → 工作负载 → GPU，
+> 含节点规格与预留、节点池、调度约束、弹性扩缩、配额与异构。设计见 [`compute-architecture.md`](compute-architecture.md)，
+> 验收见 [`compute-verification.md`](compute-verification.md)（`make verify-compute`）。
 
 ---
 
@@ -126,7 +130,7 @@
 |---|---|---|
 | 数据 | CNPG 三库 / Redis(StatefulSet) / MinIO | 同集群(D)、无 PITR/Snapshotter、无供给抽象 |
 | 工具链 | Harbor / 镜像管道 / Chart OCI / GitLab / 可观测 | Runner、Casdoor OIDC、策略·密钥、外置化 |
-| 集群 | 5 节点 HA、SC 契约 | 单/多节点同契约未显式验证、节点池/多集群 |
+| 集群 | 5 节点 HA、SC 契约、**计算图层验收（`verify-compute`）+ 压测演练** | 单/多节点同契约未显式验证、节点池/多集群落地、HPA/VPA/descheduler、GPU |
 | 租户 | Mode A | Mode B/C、GitOps、自助 |
 
 ---

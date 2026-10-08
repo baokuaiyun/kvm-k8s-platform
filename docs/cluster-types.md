@@ -30,7 +30,7 @@
 | B2 | **可观测（agent→中心）**：node-exporter/promtail/OTel |
 | B3 | **命名空间租户**：Mode A（Quota+RBAC+NetPol） |
 | B4 | **隔离租户**：Mode C（vCluster/独立控制面） |
-| B5 | **规模化**：多集群、节点池、容量与成本 |
+| B5 | **规模化**：多集群、节点池、容量与成本（计算图层见 [`compute-architecture.md`](compute-architecture.md)） |
 
 ## 四、横切基线（两类都从第 1 步就打）
 - **安全**：PSA/NetworkPolicy/RBAC/密钥供应链。

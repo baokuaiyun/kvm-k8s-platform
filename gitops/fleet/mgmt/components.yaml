@@ -9,4 +9,4 @@ components:
   - redis-operator
   - harbor
   - flux
-  - observability
+  - monitoring

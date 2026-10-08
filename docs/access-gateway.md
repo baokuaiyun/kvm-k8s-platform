@@ -41,7 +41,9 @@ kubectl apply -f platform/gateway/gateway.yaml
 kubectl apply -f platform/gateway/harbor-route.yaml
 ```
 
-内网 DNS：`kvm/br-prod.xml` 的 dnsmasq 增 `harbor.test.baokuaiyun.com → 192.168.124.30`；宿主机 `/etc/hosts` 同步。
+内网 DNS：入口域名（`INGRESS_SERVICES`：casdoor/harbor/gitlab/grafana/flux/argocd）统一指向入口 VIP `EFF_GATEWAY_VIP`。
+由 `make ingress-dns`（`scripts/render-ingress-dns.sh`）从变量渲染进 `kvm/br-prod.xml` + dnsmasq（`virsh net-update --live`）+ 宿主 `/etc/hosts` 托管块，单一来源、勿手改。
+VIP 取值：`NET_BIZ_ENABLED=1`（drill）→ `BIZ_GATEWAY_VIP=192.168.1.235`；`=0` → `GATEWAY_VIP=192.168.124.31`。
 
 ## 三、镜像/节点访问
 
@@ -54,7 +56,7 @@ kubectl apply -f platform/gateway/harbor-route.yaml
 | 演练 | 生产 |
 |---|---|
 | 自签 ClusterIssuer/Certificate | cert-manager DNS-01(LE) 或阿里云证书 |
-| Gateway VIP `192.168.124.30:443` | 内网 SLB → kgateway |
+| Gateway VIP `EFF_GATEWAY_VIP:443`（drill=192.168.1.235） | 内网 SLB → kgateway |
 | libvirt dnsmasq | 阿里云 PrivateZone（内网解析） |
 
 ## 五、验证

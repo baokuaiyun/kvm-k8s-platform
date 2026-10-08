@@ -68,12 +68,12 @@ if [ ! -f "$CHART_TGZ" ]; then
   no_proxy_env helm pull "$CHART_REF" --version "$VER" -d "$CHART_DIR"
 fi
 echo "[+] 推送 chart 到 ${OCI_REPO}"
-no_proxy_env helm push "$CHART_TGZ" "$OCI_REPO" >/dev/null
+no_proxy_env helm push "$CHART_TGZ" "$OCI_REPO" --insecure-skip-tls-verify >/dev/null
 echo "    pushed flux-operator:${VER}"
 
 # 5) Helm 安装/升级（--take-ownership 收编旧资源）
 echo "[+] helm upgrade --install flux-operator（--take-ownership）"
 no_proxy_env helm upgrade --install flux-operator "${OCI_REPO}/flux-operator" \
-  --version "$VER" -n "$NS" --take-ownership -f "$VALUES"
+  --version "$VER" -n "$NS" --take-ownership --insecure-skip-tls-verify -f "$VALUES"
 
 echo "[+] 完成。查看: helm -n ${NS} list; kubectl -n ${NS} get deploy,pods"

@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: ingress-endpoints
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  interval: 30s
+  module: http_2xx_insecure
+  prober:
+    url: blackbox.monitoring.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      labels:
+        probe: ingress
+      static:
+        - https://harbor.test.baokuaiyun.com/
+        - https://gitlab.test.baokuaiyun.com/
+        - https://grafana.test.baokuaiyun.com/login
+        - https://flux.test.baokuaiyun.com/
+        - https://casdoor.test.baokuaiyun.com/
+        - https://argocd.test.baokuaiyun.com/

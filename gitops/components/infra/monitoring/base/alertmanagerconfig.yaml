@@ -1,0 +1,31 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: platform-alerting
+  namespace: monitoring
+  labels:
+    alertmanagerConfig: platform
+spec:
+  route:
+    receiver: webhook
+    groupBy: ['namespace', 'alertname']
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 4h
+    routes:
+      - matchers:
+          - name: severity
+            value: critical
+            matchType: '='
+        receiver: webhook
+        repeatInterval: 1h
+      - matchers:
+          - name: severity
+            value: warning
+            matchType: '='
+        receiver: webhook
+  receivers:
+    - name: webhook
+      webhookConfigs:
+        - url: http://alert-sink.monitoring.svc:8080/
+          sendResolved: true

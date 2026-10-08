@@ -1,0 +1,47 @@
+# 告警接收 sink（drill）：接收 Alertmanager webhook 便于验证链路
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-sink
+  namespace: monitoring
+  labels:
+    app: alert-sink
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alert-sink
+  template:
+    metadata:
+      labels:
+        app: alert-sink
+    spec:
+      containers:
+        - name: sink
+          image: harbor.test.baokuaiyun.com/baokuaiyun/busybox:1.37.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - mkdir -p /www; echo ok > /www/index.html; exec httpd -f -v -p 8080 -h /www
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { memory: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alert-sink
+  namespace: monitoring
+  labels:
+    app: alert-sink
+spec:
+  selector:
+    app: alert-sink
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

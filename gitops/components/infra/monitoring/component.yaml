@@ -1,4 +1,4 @@
-name: observability
+name: monitoring
 plane: infra
 fleet: [all-in-one, mgmt, biz]
 env: [drill, prod, enterprise]
@@ -15,6 +15,7 @@ images:
   - docker.io/bats/bats:v1.4.1                                         harbor.test.baokuaiyun.com/baokuaiyun/bats-bats:v1.4.1
   - registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20221220-controller-v1.5.1-58-g787ea74b6  harbor.test.baokuaiyun.com/baokuaiyun/ingress-nginx-kube-webhook-certgen:v20221220-controller-v1.5.1-58-g787ea74b6
   - docker.io/grafana/loki:3.3.0                                       harbor.test.baokuaiyun.com/baokuaiyun/grafana-loki:3.3.0
-  - docker.io/grafana/promtail:3.0.0                                   harbor.test.baokuaiyun.com/baokuaiyun/grafana-promtail:3.0.0
+  - docker.io/grafana/alloy:v1.20.0                                    harbor.test.baokuaiyun.com/baokuaiyun/grafana-alloy:v1.20.0
+  - docker.io/library/busybox:1.37.0                                   harbor.test.baokuaiyun.com/baokuaiyun/busybox:1.37.0
   - quay.io/prometheus/blackbox-exporter:v0.28.0                       harbor.test.baokuaiyun.com/baokuaiyun/prometheus-blackbox-exporter:v0.28.0
 type: [A, B]

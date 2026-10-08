@@ -5,7 +5,7 @@ fullnameOverride: monitoring
 
 prometheus:
   prometheusSpec:
-    retention: 7d
+    retention: 15d
     storageSpec:
       volumeClaimTemplate:
         spec:
@@ -74,6 +74,10 @@ kube-state-metrics:
 
 grafana:
   enabled: true
+  grafana.ini:
+    server:
+      root_url: https://grafana.test.baokuaiyun.com/
+      domain: grafana.test.baokuaiyun.com
   image:
     registry: harbor.test.baokuaiyun.com/baokuaiyun
     repository: grafana-grafana

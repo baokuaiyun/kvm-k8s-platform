@@ -173,7 +173,7 @@ make drill-expand-pvc    # 在线扩容演练
 make auto-expand         # 部署 PV 自动扩容控制器（默认 dry-run）
 make auto-expand-once DRY_RUN=0   # 本机实扩一次
 make alerts              # 应用告警规则 + 渲染 AlertmanagerConfig
-make verify-storage      # 存储验收
+make verify-storage      # 存储验收（命令逐条回显，教程见 storage-verification.md）
 
 # 删除 → 重建（保留宿主存储）
 make reset-cluster       # 只删 VM，保留 ZFS/MinIO/缓存

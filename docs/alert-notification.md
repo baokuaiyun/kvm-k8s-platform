@@ -1,21 +1,26 @@
 # 告警通知配置（Alertmanager 多渠道）
 
-> 目标：把 `observability/alerts.yaml` 的告警，按渠道参数化投递到 企微/钉钉/Slack/邮件/通用 webhook。
-> 关联 [`parameters.md`](parameters.md)、[`cloud-disk-data-solution.md`](cloud-disk-data-solution.md)、
-> [`data-plane-management.md`](data-plane-management.md)。
+> 目标：把告警按渠道参数化投递到 企微/钉钉/Slack/邮件/通用 webhook。
+> **现状（GitOps）**：告警规则与默认路由已纳入可观测组件（`monitoring`），默认 receiver 指向
+> `alert-sink`（drill 验证）。通知渠道参数属运维可变项，建议经 **Secret + 组件 postBuild 注入** 或按需在
+> 集群内 patch `AlertmanagerConfig`，不再走命令式 `make alerts`。
+> 关联 [`observability.md`](observability.md)、[`observability-runbooks.md`](observability-runbooks.md)、
+> [`parameters.md`](parameters.md)、[`secret-management.md`](secret-management.md)。
 
 ## 一、总流程
 
 ```
-参数（ops.env / acr.env / 环境变量）
-  → observability/apply-alerts.sh 渲染 AlertmanagerConfig
-  → make alerts 应用（含 PrometheusRule + SMTP Secret）
+GitOps（组件 monitoring）
+  → PrometheusRule/cluster-alerts（规则）
+  → AlertmanagerConfig/platform-alerting（默认路由 → alert-sink）
+       └─ 运维可变项（渠道：webhook/邮件/钉钉…）经 Secret 注入 / 手动 patch
   → Alertmanager 按 severity 路由投递
 ```
 
-- 参数真源：默认值 `variables.mk`；密钥与运维值放 `acr.env` 或 `ops.env`（均 gitignored）。
-- 前置：先 `make monitoring`（已带 `--set alertmanagerConfigSelector/NamespaceSelector`，
-  否则 `AlertmanagerConfig` CR 不会被 Alertmanager 选中）。
+- 规则与默认路由真源：`gitops/components/infra/monitoring/base/{alert-rules,alertmanagerconfig}.yaml`。
+- 渠道密钥（webhook/secret、SMTP 口令）放 `ops.env`→Secret，不进 Git；参数默认值见 `variables.mk`。
+- 前置：组件 `monitoring` 已就绪（提供 `monitoring.coreos.com` CRD 与 `alertmanagerConfigSelector`）。
+- **legacy**：`observability/apply-alerts.sh` / `make alerts` / `make alert-adapter` 为历史命令式路径，已不进入主流程。
 
 ## 二、运维客户端环境参数导入
 
@@ -96,6 +101,11 @@ ALERT_WEBHOOK_URL=http://<企微中转地址>/wecom/send   # 必填
 ## 五、应用与验证
 
 ```bash
+# 规则/默认路由已由 GitOps 下发；核对：
+kubectl -n monitoring get prometheusrule cluster-alerts
+kubectl -n monitoring get alertmanagerconfig platform-alerting -o yaml
+
+# [legacy] 渲染预览/命令式应用（历史路径）
 make alerts-print          # 只打印 AlertmanagerConfig，核对渠道与路由
 make alerts                # 应用
 
@@ -113,8 +123,8 @@ curl -s -XPOST localhost:9093/api/v2/alerts -H 'Content-Type: application/json' 
 
 ## 六、常见坑
 
-- 未 `make monitoring`（缺 `monitoring.coreos.com` CRD）：`kubectl apply` 报无匹配 kind。
-- 未设 `alertmanagerConfigSelector`：CR 存在但不被选中（Makefile 已内置）。
+- 未部署可观测组件（缺 `monitoring.coreos.com` CRD / `AlertmanagerConfig` 未被选中）：先 `make observability`。
+- 未设 `alertmanagerConfigSelector`：CR 存在但不被选中（组件内 values 已设）。
 - 邮件端口：`587 + requireTLS` 最稳；465 隐式 TLS 常不兼容。
 - 钉钉/企微无原生格式，必须中转；适配器与 Alertmanager 网络要通。
 - 密钥只放 `ops.env`/`acr.env`，不要写进 `variables.mk`。

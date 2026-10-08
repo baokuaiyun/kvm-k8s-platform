@@ -1,0 +1,48 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: blackbox
+  namespace: monitoring
+spec:
+  interval: 1h
+  releaseName: blackbox
+  targetNamespace: monitoring
+  storageNamespace: monitoring
+  install:
+    createNamespace: false
+  chartRef:
+    kind: OCIRepository
+    name: blackbox-chart
+    namespace: monitoring
+  values:
+    fullnameOverride: blackbox
+    image:
+      registry: harbor.test.baokuaiyun.com/baokuaiyun
+      repository: prometheus-blackbox-exporter
+      tag: v0.28.0
+    serviceMonitor:
+      selfMonitor:
+        enabled: true
+        labels:
+          release: monitoring
+    config:
+      modules:
+        http_2xx:
+          prober: http
+          timeout: 5s
+          http:
+            valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+            follow_redirects: true
+            preferred_ip_protocol: "ip4"
+        http_2xx_insecure:
+          prober: http
+          timeout: 5s
+          http:
+            valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+            follow_redirects: true
+            preferred_ip_protocol: "ip4"
+            tls_config:
+              insecure_skip_verify: true
+    resources:
+      requests: { cpu: 20m, memory: 32Mi }
+      limits: { memory: 128Mi }

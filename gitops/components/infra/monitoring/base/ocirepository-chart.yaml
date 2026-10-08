@@ -1,0 +1,13 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: kube-prometheus-stack-chart
+  namespace: monitoring
+spec:
+  interval: 10m
+  insecure: true
+  secretRef:
+    name: harbor-auth
+  url: oci://harbor.test.baokuaiyun.com/baokuaiyun/kube-prometheus-stack
+  ref:
+    tag: "65.5.1"

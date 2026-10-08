@@ -1,0 +1,13 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: blackbox-chart
+  namespace: monitoring
+spec:
+  interval: 10m
+  insecure: true
+  secretRef:
+    name: harbor-auth
+  url: oci://harbor.test.baokuaiyun.com/baokuaiyun/prometheus-blackbox-exporter
+  ref:
+    tag: "11.19.1"

@@ -95,11 +95,12 @@ drill 用**宿主 ZFS + iSCSI**：块设备在宿主，VM 只做计算，删除/
 ## 七、验收
 
 ```bash
-make verify-storage     # SC/快照类/副本/backupTarget/PVC/备份时效
+make verify-storage     # SC/快照类/副本/backupTarget/PVC/备份时效/云盘用量（命令逐条回显）
 make auto-expand-once   # PV 自动扩容扫描（默认 dry-run 只报告）
 make alerts             # 应用 PV/存储告警 + AlertmanagerConfig
 ```
 
+> 逐项命令/期望/排障见 [`storage-verification.md`](storage-verification.md)。
 > 自动扩容与告警参数见 [`parameters.md`](parameters.md)；`allowVolumeExpansion=true` 是自动扩容前提。
 
 详见 `docs/application-data.md`（数据分级与 RPO/RTO）、`docs/data-classification.md`。

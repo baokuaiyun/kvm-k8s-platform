@@ -16,8 +16,8 @@
 | Casdoor IdP（可访问、OIDC discovery） | 工具链 | toolchain | D | ✅ | OIDC 应用回调已配 |
 | platform-data（CNPG 三库 + Redis） | 数据 | data | D | ✅ | Redis 用 StatefulSet（operator bug） |
 | 安全基线（Mode A + PSA + Quota + CiliumNetPol） | 租户 | tenant | D | ✅ | team-a/team-b |
-| 监控 kube-prometheus-stack + 告警 + Grafana 入口 | 工具链 | toolchain | D | ✅ | 镜像走 Harbor |
-| 日志 Loki + Promtail + Blackbox | 工具链 | toolchain | D | ✅ | Loki single-binary |
+| 可观测（GitOps 组件 `monitoring`）：kube-prometheus-stack + Grafana 入口 | 工具链 | toolchain | D | ✅ | 镜像/chart 走 Harbor，Flux 收敛 |
+| 日志 Loki + Grafana Alloy（替代 Promtail）+ Blackbox 探测 | 工具链 | toolchain | D | ✅ | Loki single-binary + Alloy DaemonSet |
 | 供应链/密钥：Kyverno + Sealed-Secrets + cosign | 工具链 | toolchain | D | ✅ | verifyImages 因离线 TUF 降 Audit |
 | 备份：CNPG barman→S3(MinIO) + ScheduledBackup + 恢复演练 | 数据 | data | D | ✅ | S3 出口可换 OSS |
 | Velero + S3(MinIO) + node-agent | 数据 | data | D | ✅ | 备份 platform-data 成功 |
@@ -47,6 +47,7 @@
 | 删除→重建（配置化删 VM + 一键 rebuild） | 集群 | workload | D | ✅ | `kvm/scripts/destroy-all.sh`（读 `CP_NAMES/WK_NAMES`，`KEEP_NETWORK`/`PURGE_HOST_STORAGE`）；`create-vm.sh` 幂等；`make reset-cluster`/`clean`/`clean-all`/`rebuild`/`rebuild-core`/`purge-host-storage`；`scripts/list-orphan-volumes.sh` |
 | PV 云盘自动预警 + 自动扩容（host-zfs-iscsi/alicloud） | 数据 | data | D | ✅ | `observability/alerts.yaml`（`PVCPredictFull`/`PVCResizeStuck`/inode/PV Failed）；`scripts/auto-expand-pvc.sh` + `make auto-expand`（CronJob，默认 dry-run）；`observability/apply-alerts.sh` 渲染 `AlertmanagerConfig`；参数见 [`parameters.md`](parameters.md) |
 | 告警通知多渠道（企微/钉钉/Slack/邮件/webhook）+ 运维参数导入 | 工具链 | toolchain | D | ✅ | `observability/apply-alerts.sh`（5 渠道、severity 路由、多渠并存、`ops.env`/`ALERT_ENV_FILE` 导入）；`make alerts`/`alerts-print`/`alert-adapter`；[`alert-notification.md`](alert-notification.md) |
+| 计算图层（规格/节点池/超分/弹性/配额/GPU 文档 + 验收） | 集群 | workload | D | ✅ | 新增 [`compute-architecture.md`](compute-architecture.md)/[`compute-verification.md`](compute-verification.md)（集群平面横切）；`make verify-compute`（只读 8 项）+ `make compute-drill`（压测自清理）；参数 `COMPUTE_*`/`RESERVE_*`/`OVERCOMMIT_*`/`TENANT_QUOTA_*`；`make compute-node-pools`、`make metrics-server`；计算告警（限流/超分/配额/不可调度）|
 
 ## 待办
 
@@ -62,8 +63,12 @@
 | 工具链外置化 | 工具链 | mgmt | B | 管理集群 + proxy cache |
 | Mode C(vCluster) / Mode B(Backstage+Crossplane) | 租户 | tenant | GitOps/身份 | 逐档交付 |
 | 生产 profile（A 托管云 / OSS / 云盘） | 数据/集群 | — | B | prod.env |
+| 节点池落地（`data`/`toolchain`/`gpu` 专用池） | 集群 | workload | compute 文档 | 按池打标/污点并迁移工作负载（`make compute-node-pools`）|
+| metrics-server + HPA/VPA/descheduler/Cluster-Autoscaler | 集群/工具链 | toolchain | 镜像（Tier2 已有）| 装 agent；HPA/VPA 用 `COMPUTE_ENABLE_*` 开 |
+| 异构/GPU 直通 + device plugin | 集群 | workload | GPU 硬件 | KVM VFIO / 云 GPU + `COMPUTE_ENABLE_GPU=1` |
 
 ## 本轮环境改动（drill）
+- 新增**计算图层**：`docs/compute-architecture.md`/`compute-verification.md`；`make verify-compute`（只读）+ `make compute-drill`（压测）；参数 `COMPUTE_*`/`RESERVE_*`/`OVERCOMMIT_*`/`TENANT_QUOTA_*`；`make compute-node-pools`、`make metrics-server`；计算告警四则。
 - 起步改为**单节点**（`WK_INIT_COUNT=0`，cp-1 用 `NODE_*` 8C/16G/120G），init 自动去 control-plane 污点。
 - 存储改为**宿主 ZFS + iSCSI + democratic-csi**（云盘/计算分离）；Longhorn 降为可选后端；SC 默认 `app-storage`。
 - 对象/备份层改为**宿主 MinIO（docker）**（模拟 OSS）。

@@ -32,6 +32,7 @@ EFF_LB_POOL_END="${EFF_LB_POOL_END:-$LB_POOL_END}"
 EFF_BIZ_IFACE="${EFF_BIZ_IFACE:-$VIP_IFACE}"
 DOMAIN="${DOMAIN:-test.baokuaiyun.com}"
 HARBOR_HOST="${HARBOR_HOST:-harbor.$DOMAIN}"
+INGRESS_SERVICES="${INGRESS_SERVICES:-casdoor harbor gitlab grafana flux argocd}"
 POD_CIDR="${POD_CIDR:-10.244.0.0/16}"
 SERVICE_CIDR="${SERVICE_CIDR:-10.96.0.0/12}"
 
@@ -88,9 +89,16 @@ check_dns() {
     else
       warn "$CP_ENDPOINT -> $out（期望 $CP_VIP）"
     fi
-    for h in "harbor.$DOMAIN" "gitlab.$DOMAIN" "grafana.$DOMAIN" "casdoor.$DOMAIN"; do
+    for s in $INGRESS_SERVICES; do
+      case "$s" in *.*) h="$s" ;; *) h="$s.$DOMAIN" ;; esac
       v=$(dig @${NET_GATEWAY} "$h" +short 2>/dev/null | head -1)
-      [ -n "$v" ] && ok "$h -> $v" || warn "$h 未解析（如需入口域名，补 dnsmasq host-record）"
+      if [ -z "$v" ]; then
+        bad "$h 未解析（期望 $GATEWAY_VIP；执行 make ingress-dns）"
+      elif [ "$v" = "$GATEWAY_VIP" ]; then
+        ok "$h -> $v（= EFF_GATEWAY_VIP）"
+      else
+        bad "$h -> $v（期望 $GATEWAY_VIP，入口 VIP 不一致；核对 make ingress-dns / kvm/br-prod.xml）"
+      fi
     done
   else
     skip "无 dig（apt install dnsutils），跳过 DNS 检查"

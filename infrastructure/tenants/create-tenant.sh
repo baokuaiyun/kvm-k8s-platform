@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # 创建租户（Mode A: Namespace 隔离）
-# 用法: bash create-tenant.sh <租户名> [cpu] [内存Gi]
-# 例: bash create-tenant.sh team-a 2 4
+# 用法: bash create-tenant.sh <租户名> [requests.cpu] [requests.memory] [limits.cpu] [limits.memory]
+# 例: bash create-tenant.sh team-a 4 8Gi 8 16Gi
+# 默认配额来自 variables.mk 的 TENANT_QUOTA_*（由 make 导出；直接运行则用内置默认）。
 set -euo pipefail
 
 TENANT="${1:-}"
-CPU="${2:-2}"
-MEM_GI="${3:-4}"
+REQ_CPU="${2:-${TENANT_QUOTA_REQ_CPU:-4}}"
+REQ_MEM="${3:-${TENANT_QUOTA_REQ_MEM:-8Gi}}"
+LIM_CPU="${4:-${TENANT_QUOTA_LIM_CPU:-8}}"
+LIM_MEM="${5:-${TENANT_QUOTA_LIM_MEM:-16Gi}}"
 
-[ -z "$TENANT" ] && { echo "用法: bash create-tenant.sh <租户名> [cpu] [内存Gi]"; exit 1; }
+[ -z "$TENANT" ] && { echo "用法: bash create-tenant.sh <租户名> [requests.cpu] [requests.memory] [limits.cpu] [limits.memory]"; exit 1; }
 
 case "$TENANT" in
   team-*) NS="$TENANT" ;;
@@ -21,8 +24,12 @@ echo "[+] 创建租户 namespace: ${NS}"
 # 1. 创建 namespace
 kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
 
-# 2. 应用安全基线（替换 __NAMESPACE__ 占位符）
-sed "s/__NAMESPACE__/${NS}/g" "$BASELINE" | kubectl apply -f -
+# 2. 应用安全基线（替换命名空间与配额占位符；配额参数化见 docs/parameters.md）
+sed -e "s/__NAMESPACE__/${NS}/g" \
+    -e "s/__REQ_CPU__/${REQ_CPU}/g" \
+    -e "s/__REQ_MEM__/${REQ_MEM}/g" \
+    -e "s/__LIM_CPU__/${LIM_CPU}/g" \
+    -e "s/__LIM_MEM__/${LIM_MEM}/g" "$BASELINE" | kubectl apply -f -
 
 # 3. 创建 RBAC（租户可管理 PG/Redis CRD）
 kubectl apply -f - <<EOF
@@ -66,4 +73,4 @@ if [ -n "$TOKEN" ]; then
   echo "    export TOKEN=${TOKEN}"
 fi
 
-echo "[+] 租户 ${TENANT} 创建完成 (namespace: ${NS}, CPU: ${CPU}, 内存: ${MEM_GI}Gi)"
+echo "[+] 租户 ${TENANT} 创建完成 (namespace: ${NS}, requests: ${REQ_CPU}/${REQ_MEM}, limits: ${LIM_CPU}/${LIM_MEM})"

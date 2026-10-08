@@ -36,7 +36,8 @@
 | 2 | 安全基线（Mode A 租户 + PSA + Quota/LimitRange + CiliumNetworkPolicy） | `team-a/team-b` 就绪；privileged Pod 被拒 |
 | 2 | 监控栈 kube-prometheus-stack（Prometheus/Grafana/Alertmanager/operator/kube-state/node-exporter） | Pod Running；PVC 用 `app-storage` |
 | 2 | Grafana 入口 | `https://grafana.test.baokuaiyun.com/login` 200 |
-| 2 | 告警规则 | `cluster-alerts` PrometheusRule 已应用 |
+| 2 | 告警规则 | `cluster-alerts` PrometheusRule 已应用（含计算四则：限流/超分/配额/不可调度） |
+| 2 | **计算图层验收**（节点/超分/调度/配额/弹性/节点池/GPU/告警） | `make verify-compute`（只读 8 项，命令逐条回显）；`make compute-drill`（压测，临时 ns 自清理）；详见 [`compute-verification.md`](compute-verification.md) |
 | 2 | 日志 Loki（single-binary）+ Promtail | Loki 收到日志（labels 含 namespace/pod）；promtail 5/5 |
 | 2 | Blackbox Exporter | Pod Running |
 | 3 | Harbor OCI Helm chart | `helm push`/`helm show chart oci://...` 成功（11 charts） |

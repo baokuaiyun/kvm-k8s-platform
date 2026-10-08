@@ -29,7 +29,7 @@
 - [ ] 镜像管道（prepare/push）与 **Chart OCI** 推送/拉取可用。
 - [ ] GitLab（route C）可用；Runner 注册并可跑流水线（CI）。
 - [ ] 身份：Casdoor 部署 + **OIDC 接入 Harbor/GitLab** + 组→RBAC 映射表。
-- [ ] 可观测：Prometheus/Grafana/Loki/告警，Grafana 可登录且有数据。
+- [ ] 可观测（GitOps 组件 `monitoring`）：Prometheus/Grafana/Loki/Alloy/Blackbox/告警；Grafana 可登录且有指标+日志。见 [`observability.md`](observability.md)。
 - [ ] 策略/密钥：Kyverno（准入）+ External-Secrets/Sealed（密钥零明文）。
 - [ ] **可外置**：另一集群能"零改造"消费本平面（镜像/身份/CI）。
 - 验收：`crictl pull` 走 Harbor；`helm show chart oci://...`；Grafana 登录；新集群接 Harbor+GitLab。
@@ -40,7 +40,8 @@
 - [ ] 存储契约就绪（`app-storage`、Retain、扩容、快照类）。
 - [ ] 节点标准化（镜像/内核/依赖如 open-iscsi），可重建。
 - [ ] 内网 DNS 与 VIP 稳定。
-- 验收：`kubectl get nodes`；`kubectl get sc`；单节点→多节点演练平滑。
+- [ ] **计算图层**（[`compute-architecture.md`](compute-architecture.md)）：节点规格与 allocatable/超分可核对；节点池可声明（标签+污点）；弹性能力可用（metrics-server + HPA/VPA/descheduler，按 `COMPUTE_ENABLE_*`）；租户配额生效；GPU 可声明（无则 SKIP）。
+- 验收：`kubectl get nodes`；`kubectl get sc`；单节点→多节点演练平滑；`make verify-compute`（只读）+ `make compute-drill`（压测）。
 
 ## 租户平面
 - [ ] 租户开通**自助**（脚本或 Backstage），带配额/PSA/NetworkPolicy/RBAC。

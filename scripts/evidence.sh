@@ -30,6 +30,7 @@ CHECKS_DEF=(
   "snapshot_class|快照类|kubectl get volumesnapshotclass"
   "storage_verify|存储验收|make -C $ROOT verify-storage"
   "network_verify|网络平面验收|make -C $ROOT verify-network"
+  "compute_verify|计算图层验收|make -C $ROOT verify-compute"
   "helm|Helm 发布|helm list -A"
 )
 

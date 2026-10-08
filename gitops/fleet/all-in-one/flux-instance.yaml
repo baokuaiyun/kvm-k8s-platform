@@ -1,5 +1,6 @@
 # 集群模式 all-in-one 的 FluxInstance（薄：只声明期望态来源与集群画像）
-# 说明：本文件为模板。url/artifact 指向 Harbor OCI；verify 用 key-based cosign。
+# 说明：distribution 走 Harbor OCI（镜像源镜像 + cosign 验签）；集群期望态由
+#       ResourceSet（tenants/* + render-stack）下发，本文件暂不声明 sync。
 apiVersion: fluxcd.controlplane.io/v1
 kind: FluxInstance
 metadata:
@@ -8,7 +9,8 @@ metadata:
 spec:
   distribution:
     version: "2.x"
-    registry: harbor.test.baokuaiyun.com/baokuaiyun
+    registry: harbor.test.baokuaiyun.com/baokuaiyun/fluxcd
+    variant: upstream-alpine
     artifact: oci://harbor.test.baokuaiyun.com/baokuaiyun/flux-operator-manifests:latest
     artifactPullSecret: harbor-auth
     imagePullSecret: harbor-auth
@@ -24,24 +26,3 @@ spec:
     tenantDefaultServiceAccount: flux
     networkPolicy: true
     domain: cluster.local
-  sync:
-    kind: OCIRepository
-    url: oci://harbor.test.baokuaiyun.com/baokuaiyun/fleet
-    ref: latest
-    path: fleet/all-in-one
-    pullSecret: harbor-auth
-  kustomize:
-    patches:
-      - target:
-          kind: OCIRepository
-          name: flux-system
-        patch: |
-          - op: add
-            path: /spec/insecure
-            value: true
-          - op: add
-            path: /spec/verify
-            value:
-              provider: cosign
-              secretRef:
-                name: cosign-pub

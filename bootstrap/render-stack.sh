@@ -128,7 +128,7 @@ ${inputs}  resources:
         interval: 30m
         prune: true
         wait: true
-        timeout: 5m
+        timeout: 10m
         sourceRef: {kind: OCIRepository, name: component}
         path: "./overlays/<< inputs.environment >>"
 EOF

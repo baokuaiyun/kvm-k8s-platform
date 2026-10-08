@@ -6,4 +6,4 @@ components:
   - cert-manager
   - kgateway
   - flux
-  - observability
+  - monitoring

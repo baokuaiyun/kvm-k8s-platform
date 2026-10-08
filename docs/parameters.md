@@ -18,6 +18,27 @@
 | `CP_VIP` / `CP_ENDPOINT` | 集群 VIP / API 端点 | `192.168.124.30` / `k8s-api.$(DOMAIN)` | G |
 | `VIP_IFACE` | VIP 网卡 | `enp1s0` | G |
 
+## 计算（节点池 / 预留 / 超分 / 弹性 / 异构）
+> 计算图层是「集群平面」的横切层：宿主 VM → 节点 → 工作负载 → GPU。
+> 设计见 [`compute-architecture.md`](compute-architecture.md)，验收见 [`compute-verification.md`](compute-verification.md)。
+
+| 变量 | 含义 | 默认 | 作用域 |
+|---|---|---|---|
+| `NODE_VCPU/RAM/DISK` | 单节点起步机型（cp-1，含控制面+存储+平台）| 8C/16G/120G | G |
+| `CP_VCPU/RAM/DISK`、`WK_VCPU/RAM/DISK` | 多节点机型规格（扩容后） | 2C/4G/30G、4C/4G/50G | G |
+| `COMPUTE_POOL_LABEL` | 节点池角色标签键（值为池名） | `workload.baokuaiyun.com/pool` | G |
+| `RESERVE_CPU` / `RESERVE_MEM` | kubelet 预留参考（`kubeReserved`/`systemReserved`）| `500m` / `1Gi` | G |
+| `OVERCOMMIT_CPU_MAX` / `OVERCOMMIT_MEM_MAX` | 验收允许的 requests/allocatable 超分比上限 | `2.0` / `1.5` | G |
+| `COMPUTE_ENABLE_METRICS_SERVER` | 安装 metrics-server（HPA/VPA/`kubectl top` 前提）| `1` | G |
+| `COMPUTE_ENABLE_HPA` | HPA 可用（验收核对） | `1` | G |
+| `COMPUTE_ENABLE_VPA` / `COMPUTE_ENABLE_DESCHEDULER` / `COMPUTE_ENABLE_AUTOSCALER` | 可选弹性 agent | `0` | G |
+| `COMPUTE_ENABLE_GPU` | 异构/GPU 直通开关（drill 无 GPU 置 0） | `0` | G |
+| `COMPUTE_GPU_RESOURCE` / `COMPUTE_GPU_VENDOR` | GPU 资源名 / 厂商 | `nvidia.com/gpu` / `nvidia` | G |
+| `COMPUTE_DRILL_NS` / `COMPUTE_DRILL_IMAGE` | 压测演练 ns / 镜像（走 Harbor） | `compute-drill` / `<Harbor>/busybox:1.37.0` | G |
+| `COMPUTE_STRESS_CPU` / `COMPUTE_STRESS_MEM` | 演练压力 requests | `2` / `256Mi` | G |
+| `COMPUTE_DRILL_TIMEOUT` | 演练等待上限（秒） | `180` | G |
+| `TENANT_QUOTA_REQ_CPU/REQ_MEM/LIM_CPU/LIM_MEM` | 租户默认 ResourceQuota（`create-tenant.sh` 替换占位符）| `4`/`8Gi`/`8`/`16Gi` | G |
+
 ## 节点 / LB IP（服务负载均衡地址）
 > 三环境（KVM/阿里云 ECS/裸机）差异只改这几个开关；应用侧契约（`Service type=LoadBalancer`、Gateway listener `https`）不变。
 > 分层优先级：G 默认（`variables.mk`）<- P 覆盖（`gitops/profiles/<env>.env`，`make ... ENV=<env>`）<- S 密钥（`acr.env`）。

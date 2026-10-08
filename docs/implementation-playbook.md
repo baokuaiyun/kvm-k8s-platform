@@ -584,11 +584,14 @@ helm upgrade --install fluent-bit fluent/fluent-bit \
 
 | 工具 | 用途 | 部署方式 |
 |------|------|---------|
+| **metrics-server** | 资源指标（HPA/VPA/`kubectl top` 前提）| `make metrics-server` |
 | **kured** | 节点安全重启（内核更新后自动 drain+reboot）| Helm |
 | **descheduler** | Pod 重调度，负载均衡 | Helm |
 | **VPA + Goldilocks** | 资源 Requests/Limits 推荐 | Helm |
 | **Popeye** | 集群安全/配置静态分析 | kubectl 插件 |
 | **Pluto** | 检查已弃用 API 版本（升级前必查）| kubectl 插件 |
+
+> 计算图层（节点规格/节点池/弹性/配额/GPU）设计与验收见 [`compute-architecture.md`](compute-architecture.md)、[`compute-verification.md`](compute-verification.md)。
 
 ```bash
 # kured

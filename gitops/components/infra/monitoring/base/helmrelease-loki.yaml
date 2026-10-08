@@ -1,0 +1,55 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: loki
+  namespace: monitoring
+spec:
+  interval: 1h
+  releaseName: loki
+  targetNamespace: monitoring
+  storageNamespace: monitoring
+  install:
+    createNamespace: false
+  chartRef:
+    kind: OCIRepository
+    name: loki-chart
+    namespace: monitoring
+  values:
+    deploymentMode: SingleBinary
+    loki:
+      auth_enabled: false
+      commonConfig:
+        replication_factor: 1
+      storage:
+        type: filesystem
+      useTestSchema: true
+      limits_config:
+        retention_period: 30d
+      compactor:
+        retention_enabled: true
+        delete_request_store: filesystem
+      image:
+        registry: harbor.test.baokuaiyun.com/baokuaiyun
+        repository: grafana-loki
+        tag: "3.3.0"
+    singleBinary:
+      replicas: 1
+      persistence:
+        enabled: true
+        storageClass: app-storage
+        size: 20Gi
+      resources:
+        requests: { cpu: 50m, memory: 256Mi }
+        limits: { memory: 768Mi }
+    read: { replicas: 0 }
+    write: { replicas: 0 }
+    backend: { replicas: 0 }
+    chunksCache: { enabled: false }
+    resultsCache: { enabled: false }
+    gateway: { enabled: false }
+    test: { enabled: false }
+    lokiCanary: { enabled: false }
+    sidecar:
+      image:
+        repository: harbor.test.baokuaiyun.com/baokuaiyun/kiwigrid-k8s-sidecar
+        tag: 1.28.0
