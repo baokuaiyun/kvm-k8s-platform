@@ -43,11 +43,11 @@ spec:
     - name: bd
       source: https://github.com/gastownhall/gascity/tree/main/examples/bd
       version: "sha:f895c0ff47d6ee9334ed282a416387eb5b084d24"
-    # 治理 pack 与平台仓同源：放在 kvm-k8s-platform 仓的 gitops/packs/llm-governance。
-    # gc import 的 //subdir 形式只取该子目录作为 pack。
+    # 治理 pack 直接烘进 controller 镜像（/opt/gc-packs/llm-governance），
+    # 用本地路径导入，避免集群 Pod 从 GitHub HTTPS 克隆（该链路不稳定会卡住）。
+    # 更新 pack = 重建 gc-controller:packs 镜像并 bump controller.image。
     - name: llmgov
-      source: https://github.com/baokuaiyun/kvm-k8s-platform.git//gitops/packs/llm-governance
-      version: "sha:7d685d62a42b87bf0e1dfff06ca768af53c3e855"
+      source: /opt/gc-packs/llm-governance
 
   # 项目管理：治理工作由一个 rig（llm-governance）承载，其工作区 = 治理 pack 仓库。
   rigs:
@@ -55,26 +55,22 @@ spec:
       prefix: llmgov
       defaultBranch: main
 
-  # 工作区：把治理 pack 仓库检出到 /city/workspaces/llm-governance/...
-  # 仓库根含 pack.toml + orders/ + formulas/ + agents/ + [[pricing]]，被 gascity 作为
-  # 隐式 pack 展开（rig 绑定的工作区路径含 pack.toml 时生效）。
+  # 工作区：治理 rig 的工作目录。pack 内容来自镜像内的 import（见上），
+  # 这里不再从 GitHub 克隆；rig 的 checkout 目录由 operator 直接映射到镜像内的 pack。
   workspaces:
     - name: llm-governance
       defaultBranch: main
       persistent: true
       sources:
         - git:
-            # 治理 pack 与平台仓同源；pathInRepo 只检出子目录。
-            url: https://github.com/baokuaiyun/kvm-k8s-platform.git
-            revision: 7d685d62a42b87bf0e1dfff06ca768af53c3e855
-            pathInRepo: gitops/packs/llm-governance
-            # 私有仓凭证：Secret 目前无需（公开仓/或后续改私有再加）。
-            # secretRef: llm-governance-git
+            # 无网络克隆：直接用镜像内烘焙的 pack 目录作为工作区。
+            url: file:///opt/gc-packs/llm-governance
   rigWorkspaceBindings:
     llm-governance: llm-governance
 
   controller:
-    image: gascity/controller:1.5.0
+    # 1.5.0 + 治理 pack 烘焙在 /opt/gc-packs/llm-governance（见 Dockerfile.pack）。
+    image: harbor.test.baokuaiyun.com/baokuaiyun/gc-controller:packs-v4
     replicas: 1
     resources:
       requests:
@@ -111,7 +107,7 @@ spec:
     provider: k8s
     k8s:
       namespace: gc-gov
-      image: gc-agent:latest
+      image: harbor.test.baokuaiyun.com/baokuaiyun/gc-agent:packs
       cpuRequest: "0"
       memoryRequest: "0"
       cpuLimit: "2"
