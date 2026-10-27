@@ -21,7 +21,7 @@ description = """
 为每个将要纳入治理的模型产出一行台账：provider、model、upstream、input/output
 单价（USD per 1M）、context window、是否 reasoning。写入 assets/model-catalog.md。
 """
-assignee = "implementer"
+metadata = { "gc.run_target" = "llmgov.implementer" }
 
 [[steps]]
 id = "align-config"
@@ -33,11 +33,11 @@ description = """
 二者必须一一对应；逻辑名与技术名分离。产出 PR。
 """
 needs = ["draft-catalog"]
-assignee = "implementer"
+metadata = { "gc.run_target" = "llmgov.implementer" }
 
 [[steps]]
 id = "review-catalog"
 title = "评审台账与对齐"
 description = "校验台账完整、config 与 pricing 对齐、无明文密钥、命名规范一致。approve 或 request-changes。"
 needs = ["align-config"]
-assignee = "reviewer"
+metadata = { "gc.run_target" = "llmgov.reviewer" }

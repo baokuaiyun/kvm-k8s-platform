@@ -22,7 +22,7 @@ description = """
 为每个角色定义逻辑名（如 platform/coder-default、platform/cheap-title），
 映射到多个后端（tencent/deepinfra/...）。写入 platform/litellm model_list 别名段。
 """
-assignee = "implementer"
+metadata = { "gc.run_target" = "llmgov.implementer" }
 
 [[steps]]
 id = "router-policy"
@@ -33,7 +33,7 @@ num_retries/timeout/allowed_fails/cooldown_time/max_parallel_requests。
 目标：上游抖动时快速失败+有限重试，不放大请求；超窗自动换长上下文模型。
 """
 needs = ["define-aliases"]
-assignee = "implementer"
+metadata = { "gc.run_target" = "llmgov.implementer" }
 
 [[steps]]
 id = "verify-fallback"
@@ -43,4 +43,4 @@ description = """
 断言 agent 不重启、请求经网关。approve 或 request-changes。
 """
 needs = ["router-policy"]
-assignee = "reviewer"
+metadata = { "gc.run_target" = "llmgov.reviewer" }

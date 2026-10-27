@@ -22,7 +22,7 @@ description = """
 max_budget/budget_duration/tpm_limit/rpm_limit/models 白名单。
 密钥以 Secret 形式交付（不落明文）。产出 PR。
 """
-assignee = "implementer"
+metadata = { "gc.run_target" = "llmgov.implementer" }
 
 [[steps]]
 id = "general-settings"
@@ -33,7 +33,7 @@ proxy_budget_rescheduler_min/max_time、background_health_checks；
 必要时启用 coordination_redis（集群已有 redis-operator）。
 """
 needs = ["teams-keys"]
-assignee = "implementer"
+metadata = { "gc.run_target" = "llmgov.implementer" }
 
 [[steps]]
 id = "observability-alerts"
@@ -43,7 +43,7 @@ Prometheus 抓 litellm:4000/metrics；Grafana 面板按 team/model/key 展示 sp
 错误率、fallback 次数；配置预算 80%/100% 告警。
 """
 needs = ["general-settings"]
-assignee = "implementer"
+metadata = { "gc.run_target" = "llmgov.implementer" }
 
 [[steps]]
 id = "review-budget"
@@ -53,4 +53,4 @@ description = """
 无绕过网关路径；百炼受限。approve 或 request-changes。
 """
 needs = ["observability-alerts"]
-assignee = "reviewer"
+metadata = { "gc.run_target" = "llmgov.reviewer" }
