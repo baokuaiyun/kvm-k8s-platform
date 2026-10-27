@@ -1,0 +1,2 @@
+description = "LLM 治理协调者：评审目标、拆分治理工作、决定 run/reject，并驱动 implementer/reviewer。"
+role = "governor"

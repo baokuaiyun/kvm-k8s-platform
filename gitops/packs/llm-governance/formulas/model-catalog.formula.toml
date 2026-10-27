@@ -1,0 +1,43 @@
+formula = "model-catalog"
+description = """
+治理第 1 层：自定义模型目录。
+
+产出"模型台账"并把三方对齐（城市 [[pricing]] / 网关 model_list / 逻辑别名）:
+- 每个自定义模型: provider、model、真实上游、单价（USD/1M tokens）、上下文窗口。
+- 统一命名: <vendor>/<model> 作为技术名，platform/<role> 作为逻辑名。
+- 变更以 PR 形式进入 GitOps 平台仓（component: platform/litellm + city pricing）。
+"""
+version = 1
+
+target_required = false
+[requires]
+formula_compiler = ">=2.0.0"
+
+[[steps]]
+id = "draft-catalog"
+title = "起草模型台账"
+description = """
+盘点现有模型来源（codebuddy / dashscope / tencent / deepinfra / litellm），
+为每个将要纳入治理的模型产出一行台账：provider、model、upstream、input/output
+单价（USD per 1M）、context window、是否 reasoning。写入 assets/model-catalog.md。
+"""
+assignee = "implementer"
+
+[[steps]]
+id = "align-config"
+title = "对齐网关 model_list 与 city pricing"
+description = """
+据台账生成/更新:
+1) platform/litellm 的 config.yaml model_list（逻辑名 -> 上游 + 成本字段）；
+2) 城市 city.toml 的 [[pricing]]（prompt/completion/cache_* usd per 1m + last_verified）。
+二者必须一一对应；逻辑名与技术名分离。产出 PR。
+"""
+needs = ["draft-catalog"]
+assignee = "implementer"
+
+[[steps]]
+id = "review-catalog"
+title = "评审台账与对齐"
+description = "校验台账完整、config 与 pricing 对齐、无明文密钥、命名规范一致。approve 或 request-changes。"
+needs = ["align-config"]
+assignee = "reviewer"

@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: gc-gov
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: GasCity
+      name: gov
+    patch: |-
+      - op: replace
+        path: /spec/controller/resources/limits/memory
+        value: 2Gi
+      - op: replace
+        path: /spec/controller/persistence/size
+        value: 20Gi
+      - op: replace
+        path: /spec/dolt/persistence/size
+        value: 50Gi
+      - op: replace
+        path: /spec/dolt/resources/limits/memory
+        value: 4Gi
+      - op: replace
+        path: /spec/session/k8s/memoryLimit
+        value: 8Gi

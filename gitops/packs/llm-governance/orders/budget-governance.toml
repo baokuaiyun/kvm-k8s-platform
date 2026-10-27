@@ -1,0 +1,8 @@
+# 治理第 3 层：收费治理（team/key 预算、限流、spend 归集、告警）。
+[order]
+description = "启动收费治理（预算/限流/计费/告警）"
+formula = "budget-governance"
+trigger = "manual"
+scope = "rig"
+pool = "governor"
+timeout = "30m"

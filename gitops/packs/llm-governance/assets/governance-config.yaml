@@ -1,0 +1,23 @@
+# 治理运行参数（供本 pack 的 agent 读取；非 gc 运行时配置）
+governance:
+  # 治理产出的 PR 目标仓库（GitOps 唯一变更通道）。
+  repo: git@github.com:baokuaiyun/kvm-k8s-platform.git
+  branch: main
+  # 变更落点（组件约定）。
+  components:
+    gateway: gitops/components/platform/litellm
+    city: gitops/components/agent/llm-governance
+    fleet_layer: gitops/fleet/layers/agent/components.yaml
+  # 网关选型。
+  gateway: litellm            # 主网关；agentgateway 作 MCP/A2A 数据面
+  # 计价/账单口径。
+  currency: USD
+  billing_period: monthly
+  # 预算档位（示例，待运营确认）。
+  budgets:
+    rig-agents: { max_budget: 50, budget_duration: 30d, rpm: 600, tpm: 400000 }
+    interactive: { max_budget: 20, budget_duration: 30d, rpm: 120, tpm: 100000 }
+    ci: { max_budget: 30, budget_duration: 30d, rpm: 300, tpm: 200000 }
+  # 昂贵/易失控模型：是否移出路由；保留则设极低预算。
+  expensive_models:
+    "dashscope/deepseek-v4-flash-0731": { action: "remove-or-tiny-budget", max_budget: 1 }

@@ -1,0 +1,14 @@
+name: llm-governance
+plane: agent
+fleet: [all-in-one]
+env: [drill, prod, enterprise]
+type: [A, B]
+# Gas City "治理城市" —— 由城市自身（orders+formulas，托管在 llm-governance rig 仓库）
+# 完成 LLM 治理开发工作，不在任何交互会话中执行。
+# 交付物：Gascity CR（新建城市 + 绑定 llm-governance rig 工作区）。
+# 该 rig 工作区仓库根含 pack.toml + orders/ + formulas/ + agents/ + [[pricing]]，
+# 由 gascity 的 pack 机制在 rig 路径上隐式展开（compose.go: path 含 pack.toml 即视为 pack）。
+crds:
+  - gascities.gascity.gastownhall.io
+namespace: gc-gov
+rbac: cluster

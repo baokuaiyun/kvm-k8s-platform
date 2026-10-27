@@ -1,0 +1,8 @@
+# 治理第 2 层：平台模型自动切换（网关别名 + 降级/熔断）。
+[order]
+description = "启动平台模型自动切换治理（逻辑别名 + fallbacks/熔断）"
+formula = "gateway-fallbacks"
+trigger = "manual"
+scope = "rig"
+pool = "governor"
+timeout = "30m"

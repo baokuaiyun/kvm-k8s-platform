@@ -1,0 +1,56 @@
+formula = "budget-governance"
+description = """
+治理第 3 层：收费治理。
+
+从"事后看账单"变为"事前限额、超限拒绝、按归属计费":
+- 网关 general_settings（master_key/database_url/budget_rescheduler/health_checks）。
+- team + 虚拟 key 的 max_budget / budget_duration / tpm / rpm / models 白名单。
+- 百炼等昂贵模型设极低预算或移出路由。
+- Prometheus 抓 /metrics + Grafana 面板 + 预算 80%/100% 告警。
+"""
+version = 1
+
+target_required = false
+[requires]
+formula_compiler = ">=2.0.0"
+
+[[steps]]
+id = "teams-keys"
+title = "建立 team 与虚拟 key 限额"
+description = """
+按使用方（rig-agents/interactive/ci）建 team 与虚拟 key，设
+max_budget/budget_duration/tpm_limit/rpm_limit/models 白名单。
+密钥以 Secret 形式交付（不落明文）。产出 PR。
+"""
+assignee = "implementer"
+
+[[steps]]
+id = "general-settings"
+title = "配置网关预算与数据库"
+description = """
+配置 general_settings: master_key(Secret)、database_url(CloudNativePG)、
+proxy_budget_rescheduler_min/max_time、background_health_checks；
+必要时启用 coordination_redis（集群已有 redis-operator）。
+"""
+needs = ["teams-keys"]
+assignee = "implementer"
+
+[[steps]]
+id = "observability-alerts"
+title = "指标、面板与预算告警"
+description = """
+Prometheus 抓 litellm:4000/metrics；Grafana 面板按 team/model/key 展示 spend、rpm、
+错误率、fallback 次数；配置预算 80%/100% 告警。
+"""
+needs = ["general-settings"]
+assignee = "implementer"
+
+[[steps]]
+id = "review-budget"
+title = "评审收费治理"
+description = """
+验收: 超 rpm 返回 429；超预算拒绝；spend 全量经网关可归集；告警可达；
+无绕过网关路径；百炼受限。approve 或 request-changes。
+"""
+needs = ["observability-alerts"]
+assignee = "reviewer"

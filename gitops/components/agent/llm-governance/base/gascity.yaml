@@ -1,0 +1,126 @@
+apiVersion: gascity.gastownhall.io/v1alpha1
+kind: GasCity
+metadata:
+  name: gov
+  namespace: gc-gov
+  labels:
+    app.kubernetes.io/part-of: llm-governance
+spec:
+  # 城市身份：它是独立的"治理城市"，与 gascity/hellogc 互不干扰。
+  cityName: gov
+
+  # 默认 provider。codebuddy 已在集群内可用（见 gascity 城市）。
+  provider: codebuddy
+  providerCommand: /usr/local/bin/codebuddy
+  providerConfigDir: /home/gcagent/.claude
+
+  # provider 目录：codebuddy（直连）+ platform-llm（经 LiteLLM 网关，逻辑模型名）。
+  # platform-llm 的 base_url/api_key 由 LiteLLM 组件的 Secret 注入（见 llm-governance 的
+  # README 与 gitops/components/platform/litellm）。模型用"平台逻辑名"，由网关自动路由/降级。
+  providers:
+    - name: codebuddy
+      base: builtin:claude
+      command: /usr/local/bin/codebuddy
+      pathCheck: /usr/local/bin/codebuddy
+      argsAppend: ["--port", "0"]
+      configDir: /home/gcagent/.claude
+    - name: opencode-platform
+      base: builtin:opencode
+      command: opencode
+      pathCheck: opencode
+  providersDefault: codebuddy
+
+  # 能力选装（pack）：operator 渲染成 city.toml 的 [imports.*]，启动时 gc import install。
+  # - core / bd：gascity 内置必需能力（builder profile 要求的 builtin 组）。
+  # - gascity roles：治理/开发角色定义。
+  # - llm-governance：我们自己的治理 pack（orders + formulas + agents），提供 governor/implementer/reviewer
+  #   以及 model-catalog / gateway-fallbacks / budget-governance / audit 工作流。
+  # 版本用 sha 锁定，避免 main 漂移。
+  packs:
+    - name: core
+      source: https://github.com/gastownhall/gascity/tree/main/internal/bootstrap/packs/core
+      version: "sha:f895c0ff47d6ee9334ed282a416387eb5b084d24"
+    - name: bd
+      source: https://github.com/gastownhall/gascity/tree/main/examples/bd
+      version: "sha:f895c0ff47d6ee9334ed282a416387eb5b084d24"
+    - name: gascity
+      source: https://github.com/gastownhall/gascity-packs.git//gascity/roles
+      version: "^0.4"
+    # 治理 pack 与平台仓同源：放在 kvm-k8s-platform 仓的 gitops/packs/llm-governance。
+    # gc import 的 //subdir 形式只取该子目录作为 pack。
+    - name: llmgov
+      source: https://github.com/baokuaiyun/kvm-k8s-platform.git//gitops/packs/llm-governance
+      version: "sha:PLACEHOLDER_COMMIT"
+
+  # 项目管理：治理工作由一个 rig（llm-governance）承载，其工作区 = 治理 pack 仓库。
+  rigs:
+    - name: llm-governance
+      prefix: llmgov
+      defaultBranch: main
+
+  # 工作区：把治理 pack 仓库检出到 /city/workspaces/llm-governance/...
+  # 仓库根含 pack.toml + orders/ + formulas/ + agents/ + [[pricing]]，被 gascity 作为
+  # 隐式 pack 展开（rig 绑定的工作区路径含 pack.toml 时生效）。
+  workspaces:
+    - name: llm-governance
+      defaultBranch: main
+      persistent: true
+      sources:
+        - git:
+            # 治理 pack 与平台仓同源；pathInRepo 只检出子目录。
+            url: https://github.com/baokuaiyun/kvm-k8s-platform.git
+            revision: main
+            pathInRepo: gitops/packs/llm-governance
+            # 私有仓凭证：Secret 目前无需（公开仓/或后续改私有再加）。
+            # secretRef: llm-governance-git
+  rigWorkspaceBindings:
+    llm-governance: llm-governance
+
+  controller:
+    image: gascity/controller:1.5.0
+    replicas: 1
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    persistence:
+      enabled: true
+      size: 10Gi
+
+  dolt:
+    enabled: true
+    image: dolthub/dolt-sql-server:2.5.0
+    database: bd_gov
+    user: root
+    port: 3306
+    maxConnections: 500
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 2Gi
+    persistence:
+      enabled: true
+      size: 20Gi
+
+  session:
+    provider: k8s
+    k8s:
+      namespace: gc-gov
+      image: gc-agent:latest
+      cpuRequest: 500m
+      memoryRequest: 1Gi
+      cpuLimit: "2"
+      memoryLimit: 4Gi
+      prebaked: false
+
+  # 复用集群既有可观测栈（monitoring）；如需城市自带 collector 可打开 deploy。
+  observability:
+    enabled: false
+    deploy:
+      enabled: false

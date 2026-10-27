@@ -1,0 +1,46 @@
+formula = "gateway-fallbacks"
+description = """
+治理第 2 层：平台模型自动切换。
+
+在网关（LiteLLM）配置逻辑模型别名与自动降级/熔断，使 agent 只认平台逻辑名，
+底层由网关自动切换，agent 无需重启（gascity 的 upstream 切换才会重启，故切换发生在网关内）:
+- routing_strategy: cost-based-routing
+- fallbacks / context_window_fallbacks / default_fallbacks
+- num_retries / timeout / allowed_fails / cooldown_time / max_parallel_requests
+产物为 platform/litellm 组件的 config/values，PR 进 GitOps 仓。
+"""
+version = 1
+
+target_required = false
+[requires]
+formula_compiler = ">=2.0.0"
+
+[[steps]]
+id = "define-aliases"
+title = "定义平台逻辑别名"
+description = """
+为每个角色定义逻辑名（如 platform/coder-default、platform/cheap-title），
+映射到多个后端（tencent/deepinfra/...）。写入 platform/litellm model_list 别名段。
+"""
+assignee = "implementer"
+
+[[steps]]
+id = "router-policy"
+title = "配置路由与降级/熔断"
+description = """
+设置 router_settings: cost-based-routing + fallbacks + context_window_fallbacks +
+num_retries/timeout/allowed_fails/cooldown_time/max_parallel_requests。
+目标：上游抖动时快速失败+有限重试，不放大请求；超窗自动换长上下文模型。
+"""
+needs = ["define-aliases"]
+assignee = "implementer"
+
+[[steps]]
+id = "verify-fallback"
+title = "验证自动切换"
+description = """
+给出验证步骤: 断开主上游 -> 观察到 fallback 成功；构造超窗请求 -> 自动换模型；
+断言 agent 不重启、请求经网关。approve 或 request-changes。
+"""
+needs = ["router-policy"]
+assignee = "reviewer"

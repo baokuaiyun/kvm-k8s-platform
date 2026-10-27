@@ -1,0 +1,21 @@
+# llm-governance-pack —— LLM 治理 pack
+#
+# 这是"治理城市"(gov) 里 llm-governance rig 的工作区仓库，同时也是一个 Gas City
+# schema-2 pack（gascity 在 rig 路径上发现 pack.toml 即隐式展开，见 compose.go）。
+# 城市的治理开发工作全部由本 pack 的 orders + formulas + agents 驱动完成，
+# 不依赖任何交互会话。
+#
+# 三层治理目标（对应 orders/ 与 formulas/）:
+#   1. 自定义模型目录   -> catalog  (formulas/model-catalog.formula.toml)
+#   2. 平台模型自动切换 -> gateway  (formulas/gateway-fallbacks.formula.toml)
+#   3. 收费治理         -> budget   (formulas/budget-governance.formula.toml)
+# 另有一个持续巡检 order (audit) 定期核对是否绕过网关/超预算。
+
+[pack]
+  name = "llm-governance"
+  version = "0.1.0"
+  schema = 2
+  description = "LLM 治理 pack：模型目录 + 平台模型自动切换 + 收费治理，由治理城市(gov)执行"
+
+# 治理运行参数（目标仓/分支/网关选型/计价口径）记录在 assets/governance-config.yaml，
+# 因为 [global] 只接受 session_live；这些值供 agent 读取，不是 gc 运行时配置。

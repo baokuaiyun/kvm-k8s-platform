@@ -1,0 +1,9 @@
+# 治理第 1 层：自定义模型目录。
+# manual 触发——由 governor 决定何时启动；也可改成 cooldown/cron。
+[order]
+description = "启动模型目录治理（自定义模型台账 + 三方对齐）"
+formula = "model-catalog"
+trigger = "manual"
+scope = "rig"
+pool = "governor"
+timeout = "30m"

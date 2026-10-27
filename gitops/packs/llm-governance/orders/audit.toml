@@ -1,0 +1,12 @@
+# 持续巡检：每天核对是否存在绕过网关/超预算/百炼异常调用，产出报告 bead。
+# condition 触发 + cron 兜底；check 通过（exit 0）才派发。
+[order]
+description = "每日 LLM 治理巡检（绕过网关/超预算/昂贵模型异常）"
+formula = "gateway-fallbacks"
+trigger = "cron"
+schedule = "0 9 * * *"
+tz = "Asia/Shanghai"
+scope = "rig"
+pool = "governor"
+timeout = "20m"
+enabled = false   # 先关闭，等前三个治理 PR 合并后再打开

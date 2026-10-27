@@ -1,0 +1,22 @@
+# layer: agent —— Agent 平面（第五平面）
+#
+# 中心侧（管理集群：mgmt / all-in-one）：
+#   - agentregistry : Agent/Skill/MCP 目录与发现
+#   - console       : 治理控制面（七模块）
+# 运行时侧（业务/租户集群：biz / all-in-one）：
+#   - kagent        : Agent 运行时（CRD）
+#   - agentgateway  : MCP/A2A/LLM 数据面、审计、策略
+#   - llm-governance: 治理城市（独立 GasCity CR；由城市内 orders+formulas 完成 LLM
+#                      治理开发，托管在 llm-governance rig pack 仓库）
+#
+# 契约见产品仓 contracts/（7 大稳定契约）。
+# 组件由后续 change 落地：
+#   add-agent-runtime-components（kagent/agentgateway/agentregistry/console 组件化）
+# 注：未构建的组件在 render-stack 中会被自动跳过（同 backstage）。
+layer: agent
+components:
+  - agentregistry
+  - console
+  - kagent
+  - agentgateway
+  - llm-governance

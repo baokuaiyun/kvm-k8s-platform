@@ -1,0 +1,2 @@
+description = "LLM 治理实现者：按 step 产出 GitOps 清单/配置的 PR。"
+role = "implementer"
