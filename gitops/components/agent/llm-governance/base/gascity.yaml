@@ -105,16 +105,25 @@ spec:
       enabled: true
       size: 20Gi
 
+  # agent 会话 pod：单节点 kvm 已接近请求饱和，故不设 requests（"0" 让调度忽略），
+  # 保留 limits 约束实际用量。这样 agent pod 可在饱和节点上即刻调度（BestEffort）。
   session:
     provider: k8s
     k8s:
       namespace: gc-gov
       image: gc-agent:latest
-      cpuRequest: 100m
-      memoryRequest: 512Mi
+      cpuRequest: "0"
+      memoryRequest: "0"
       cpuLimit: "2"
       memoryLimit: 4Gi
       prebaked: false
+
+  # beads-runner 承载所有 bd 查询：调大资源（limits 放宽），requests 设 0 以便调度。
+  beadsRunner:
+    cpuRequest: "0"
+    memoryRequest: "0"
+    cpuLimit: "2"
+    memoryLimit: 2Gi
 
   # 复用集群既有可观测栈（monitoring）；如需城市自带 collector 可打开 deploy。
   observability:

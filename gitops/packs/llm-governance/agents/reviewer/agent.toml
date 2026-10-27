@@ -1,2 +1,3 @@
 description = "LLM 治理评审者：校验实现是否满足验收标准与安全/成本约束。"
 role = "reviewer"
+max_active_sessions = 1
