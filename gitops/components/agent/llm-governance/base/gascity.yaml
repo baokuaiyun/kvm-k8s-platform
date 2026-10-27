@@ -47,7 +47,7 @@ spec:
     # gc import 的 //subdir 形式只取该子目录作为 pack。
     - name: llmgov
       source: https://github.com/baokuaiyun/kvm-k8s-platform.git//gitops/packs/llm-governance
-      version: "sha:ff974da2214df2babbf325f090900b77b9990098"
+      version: "sha:7d685d62a42b87bf0e1dfff06ca768af53c3e855"
 
   # 项目管理：治理工作由一个 rig（llm-governance）承载，其工作区 = 治理 pack 仓库。
   rigs:
@@ -66,7 +66,7 @@ spec:
         - git:
             # 治理 pack 与平台仓同源；pathInRepo 只检出子目录。
             url: https://github.com/baokuaiyun/kvm-k8s-platform.git
-            revision: ff974da2214df2babbf325f090900b77b9990098
+            revision: 7d685d62a42b87bf0e1dfff06ca768af53c3e855
             pathInRepo: gitops/packs/llm-governance
             # 私有仓凭证：Secret 目前无需（公开仓/或后续改私有再加）。
             # secretRef: llm-governance-git
@@ -110,8 +110,8 @@ spec:
     k8s:
       namespace: gc-gov
       image: gc-agent:latest
-      cpuRequest: 500m
-      memoryRequest: 1Gi
+      cpuRequest: 100m
+      memoryRequest: 512Mi
       cpuLimit: "2"
       memoryLimit: 4Gi
       prebaked: false
